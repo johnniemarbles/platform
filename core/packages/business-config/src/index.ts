@@ -56,3 +56,4 @@ export * from './publication.ts';
 export * from './publication-repository.ts';
 export * from './publication-service.ts';
 export * from './configuration-resolution.ts';
+export * from './configuration-resolution-service.ts';
