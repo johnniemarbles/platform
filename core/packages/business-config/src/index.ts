@@ -52,3 +52,6 @@ export function businessConfigurationIdentityKey(
 }
 
 export * from './changeset-validation.ts';
+export * from './publication.ts';
+export * from './publication-repository.ts';
+export * from './publication-service.ts';
