@@ -61,3 +61,4 @@ export * from './presentation-terminology.ts';
 export * from './business-ontology.ts';
 export * from './business-actors.ts';
 export * from './business-competencies.ts';
+export * from './business-organizations.ts';
