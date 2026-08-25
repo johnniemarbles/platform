@@ -9,6 +9,7 @@ import { resolveScopedConfigurationValue } from './configuration-resolution.ts';
 export interface ConfigurationSettingDefinitionRepository {
   findDefinition(
     settingKey: string,
+    effectiveAt: string,
   ): Promise<ConfigurationSettingDefinition | null>;
 }
 
@@ -59,7 +60,10 @@ export class RepositoryEffectiveConfigurationService
   async resolve(
     request: EffectiveConfigurationRequest,
   ): Promise<EffectiveConfigurationResult> {
-    const definition = await this.#definitions.findDefinition(request.settingKey);
+    const definition = await this.#definitions.findDefinition(
+      request.settingKey,
+      request.effectiveAt,
+    );
     if (definition === null) {
       return {
         status: 'DENIED',
