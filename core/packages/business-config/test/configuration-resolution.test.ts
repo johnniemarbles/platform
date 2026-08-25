@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   resolveConfigurationValue,
+  resolveScopedConfigurationValue,
   type ConfigurationSettingDefinition,
   type ConfigurationValueCandidate,
 } from '../src/index.ts';
@@ -221,5 +222,88 @@ test('selects the newest effective version within one level', () => {
   assert.equal(
     result.trace.some((entry) => entry.code === 'CONFIGURATION_VERSION_SUPERSEDED'),
     true,
+  );
+});
+
+test('rejects sibling tenant values even when their precedence is higher', () => {
+  const result = resolveScopedConfigurationValue(
+    bounded,
+    [
+      candidates[0]!,
+      {
+        ...candidates[3]!,
+        scopeId: 'tenant-a',
+        recordId: 'tenant-a-limit',
+        value: 60,
+      },
+      {
+        ...candidates[3]!,
+        scopeId: 'tenant-b',
+        recordId: 'tenant-b-limit',
+        value: 50,
+      },
+    ],
+    { tenantId: 'tenant-a' },
+    '2026-08-25T15:00:00.000Z',
+  );
+
+  assert.equal(result.status, 'RESOLVED');
+  if (result.status !== 'RESOLVED') return;
+  assert.equal(result.effectiveValue, 60);
+  assert.equal(result.source.recordId, 'tenant-a-limit');
+  assert.equal(
+    result.trace.some((entry) =>
+      entry.recordId === 'tenant-b-limit'
+      && entry.code === 'CONFIGURATION_SCOPE_MISMATCH'
+    ),
+    true,
+  );
+});
+
+test('requires exact workspace and user context identifiers', () => {
+  const result = resolveScopedConfigurationValue(
+    {
+      settingKey: 'display.density',
+      overrideMode: 'OVERRIDABLE',
+      allowedOverrideLevels: ['WORKSPACE', 'USER_PREFERENCE'],
+    },
+    [
+      {
+        level: 'PLATFORM',
+        recordId: 'platform-density',
+        version: 1,
+        effectiveFrom: '2026-01-01T00:00:00.000Z',
+        value: 'comfortable',
+        evidenceRefs: ['platform:display'],
+      },
+      {
+        level: 'WORKSPACE',
+        scopeId: 'workspace-b',
+        recordId: 'workspace-b-density',
+        version: 1,
+        effectiveFrom: '2026-02-01T00:00:00.000Z',
+        value: 'compact',
+        evidenceRefs: ['workspace:b'],
+      },
+      {
+        level: 'USER_PREFERENCE',
+        scopeId: 'user-b',
+        recordId: 'user-b-density',
+        version: 1,
+        effectiveFrom: '2026-03-01T00:00:00.000Z',
+        value: 'dense',
+        evidenceRefs: ['user:b'],
+      },
+    ],
+    { workspaceId: 'workspace-a', userSubjectId: 'user-a' },
+    '2026-08-25T15:00:00.000Z',
+  );
+
+  assert.equal(result.status, 'RESOLVED');
+  if (result.status !== 'RESOLVED') return;
+  assert.equal(result.effectiveValue, 'comfortable');
+  assert.equal(
+    result.trace.filter((entry) => entry.code === 'CONFIGURATION_SCOPE_MISMATCH').length,
+    2,
   );
 });

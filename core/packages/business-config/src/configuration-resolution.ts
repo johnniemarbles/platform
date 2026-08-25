@@ -10,6 +10,17 @@ export type ConfigurationResolutionLevel =
   | 'USER_PREFERENCE'
   | 'OPERATIONAL';
 
+export interface ConfigurationResolutionContext {
+  readonly environmentKey?: string;
+  readonly planKey?: string;
+  readonly verticalKey?: string;
+  readonly tenantId?: string;
+  readonly brandId?: string;
+  readonly workspaceId?: string;
+  readonly userSubjectId?: string;
+  readonly operationalScopeId?: string;
+}
+
 export interface ConfigurationValueCandidate<Value = unknown> {
   readonly level: ConfigurationResolutionLevel;
   readonly scopeId?: string;
@@ -85,6 +96,25 @@ export function resolveConfigurationValue<Value>(
   candidates: readonly ConfigurationValueCandidate<Value>[],
   effectiveAt: string,
 ): ConfigurationResolutionResult<Value> {
+  return resolveCandidates(definition, candidates, effectiveAt);
+}
+
+/** Resolves only candidates belonging to the exact authenticated context. */
+export function resolveScopedConfigurationValue<Value>(
+  definition: ConfigurationSettingDefinition<Value>,
+  candidates: readonly ConfigurationValueCandidate<Value>[],
+  context: ConfigurationResolutionContext,
+  effectiveAt: string,
+): ConfigurationResolutionResult<Value> {
+  return resolveCandidates(definition, candidates, effectiveAt, context);
+}
+
+function resolveCandidates<Value>(
+  definition: ConfigurationSettingDefinition<Value>,
+  candidates: readonly ConfigurationValueCandidate<Value>[],
+  effectiveAt: string,
+  context?: ConfigurationResolutionContext,
+): ConfigurationResolutionResult<Value> {
   const at = Date.parse(effectiveAt);
   if (!Number.isFinite(at)) {
     throw new Error('CONFIGURATION_EFFECTIVE_AT_INVALID');
@@ -97,6 +127,10 @@ export function resolveConfigurationValue<Value>(
   const appliedLevels = new Set<ConfigurationResolutionLevel>();
 
   for (const candidate of ordered) {
+    if (context !== undefined && !matchesContext(candidate, context)) {
+      trace.push(entry(candidate, 'REJECTED', 'CONFIGURATION_SCOPE_MISMATCH'));
+      continue;
+    }
     if (!Number.isFinite(Date.parse(candidate.effectiveFrom))) {
       trace.push(entry(candidate, 'REJECTED', 'CONFIGURATION_EFFECTIVE_FROM_INVALID'));
       continue;
@@ -200,4 +234,39 @@ function entry<Value>(
     outcome,
     code,
   };
+}
+
+function matchesContext<Value>(
+  candidate: ConfigurationValueCandidate<Value>,
+  context: ConfigurationResolutionContext,
+): boolean {
+  switch (candidate.level) {
+    case 'SYSTEM_INVARIANT':
+    case 'PLATFORM':
+      return candidate.scopeId === undefined;
+    case 'ENVIRONMENT':
+      return candidate.scopeId !== undefined
+        && candidate.scopeId === context.environmentKey;
+    case 'PLAN':
+      return candidate.scopeId !== undefined
+        && candidate.scopeId === context.planKey;
+    case 'VERTICAL':
+      return candidate.scopeId !== undefined
+        && candidate.scopeId === context.verticalKey;
+    case 'TENANT':
+      return candidate.scopeId !== undefined
+        && candidate.scopeId === context.tenantId;
+    case 'BRAND':
+      return candidate.scopeId !== undefined
+        && candidate.scopeId === context.brandId;
+    case 'WORKSPACE':
+      return candidate.scopeId !== undefined
+        && candidate.scopeId === context.workspaceId;
+    case 'USER_PREFERENCE':
+      return candidate.scopeId !== undefined
+        && candidate.scopeId === context.userSubjectId;
+    case 'OPERATIONAL':
+      return candidate.scopeId !== undefined
+        && candidate.scopeId === context.operationalScopeId;
+  }
 }
