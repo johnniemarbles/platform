@@ -58,3 +58,4 @@ export * from './publication-service.ts';
 export * from './configuration-resolution.ts';
 export * from './configuration-resolution-service.ts';
 export * from './presentation-terminology.ts';
+export * from './business-ontology.ts';
