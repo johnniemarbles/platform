@@ -63,3 +63,4 @@ export * from './business-actors.ts';
 export * from './business-competencies.ts';
 export * from './business-organizations.ts';
 export * from './business-lifecycle.ts';
+export * from './business-policies.ts';
