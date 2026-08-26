@@ -9,6 +9,7 @@ export type BusinessConfigurationKind =
   | 'SKILL'
   | 'CERTIFICATION'
   | 'POLICY'
+  | 'BRAIN_MAP'
   | 'LIFECYCLE';
 
 export type BusinessConfigurationScope =
@@ -65,3 +66,4 @@ export * from './business-organizations.ts';
 export * from './business-lifecycle.ts';
 export * from './business-policies.ts';
 export * from './industry-profile.ts';
+export * from './brain-map.ts';
