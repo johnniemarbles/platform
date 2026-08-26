@@ -55,6 +55,7 @@ export type BrainMapIssueCode =
   | 'BRAIN_MAP_SOURCE_STATUS_INVALID'
   | 'BRAIN_MAP_SLICE_INVALID'
   | 'BRAIN_MAP_SLICE_DUPLICATE'
+  | 'BRAIN_MAP_PURPOSE_DUPLICATE'
   | 'BRAIN_MAP_SLICE_SOURCE_MISSING'
   | 'BRAIN_MAP_UNREVIEWED_SOURCE_EXPOSED'
   | 'BRAIN_MAP_UNEXPECTED_FIELD';
@@ -123,6 +124,7 @@ export function validateBrainMapConfiguration(
   });
 
   const sliceKeys = new Set<string>();
+  const purposeKeys = new Set<string>();
   payload.slices.forEach((slice, index) => {
     const path = `payload.slices[${index}]`;
     rejectUnexpected(slice, ['sliceKey', 'purposeKeys', 'sourceIds', 'maxItems'], path, issues);
@@ -140,6 +142,17 @@ export function validateBrainMapConfiguration(
       add(issues, 'BRAIN_MAP_SLICE_DUPLICATE', `${path}.sliceKey`, 'Slice keys must be unique.');
     }
     sliceKeys.add(slice.sliceKey);
+    slice.purposeKeys.forEach((purposeKey, purposeIndex) => {
+      if (purposeKeys.has(purposeKey)) {
+        add(
+          issues,
+          'BRAIN_MAP_PURPOSE_DUPLICATE',
+          `${path}.purposeKeys[${purposeIndex}]`,
+          'A purpose can resolve to only one progressive context slice.',
+        );
+      }
+      purposeKeys.add(purposeKey);
+    });
     const sliceSourceIds = new Set<string>();
     slice.sourceIds.forEach((sourceId, sourceIndex) => {
       const sourcePath = `${path}.sourceIds[${sourceIndex}]`;
