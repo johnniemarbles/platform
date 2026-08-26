@@ -9,6 +9,9 @@ export type BusinessConfigurationKind =
   | 'SKILL'
   | 'CERTIFICATION'
   | 'POLICY'
+  | 'COMPANY_FACT'
+  | 'ADR'
+  | 'WORKER'
   | 'BRAIN_MAP'
   | 'LIFECYCLE';
 
