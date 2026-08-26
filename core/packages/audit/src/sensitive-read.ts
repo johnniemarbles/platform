@@ -215,3 +215,43 @@ function stable(value: string): void {
 function valid(value: string): boolean {
   return value.trim() !== '' && value === value.trim() && !/[\r\n\t]/u.test(value);
 }
+
+export function validateSensitiveReadAuditEvent(
+  event: SensitiveReadAuditEvent,
+): void {
+  validateRequest(event.request);
+  const values = [
+    event.eventId,
+    event.authorizationDecisionId,
+    event.authorizationReasonKey,
+  ];
+  if (
+    values.some((value) => !valid(value))
+    || !Number.isFinite(Date.parse(event.recordedAt))
+    || Date.parse(event.recordedAt) < Date.parse(event.request.requestedAt)
+  ) {
+    throw new Error('SENSITIVE_READ_AUDIT_EVENT_INVALID');
+  }
+
+  if (event.outcome === 'ALLOWED') {
+    if (
+      event.resultReference === null
+      || !valid(event.resultReference)
+      || event.classifications.length === 0
+      || event.sourceReferences.length === 0
+      || event.classifications.some((value) => !valid(value))
+      || event.sourceReferences.some((value) => !valid(value))
+      || event.failureReasonKey !== null
+    ) {
+      throw new Error('SENSITIVE_READ_AUDIT_EVENT_INVALID');
+    }
+  } else if (
+    event.resultReference !== null
+    || event.classifications.length !== 0
+    || event.sourceReferences.length !== 0
+    || event.failureReasonKey === null
+    || !valid(event.failureReasonKey)
+  ) {
+    throw new Error('SENSITIVE_READ_AUDIT_EVENT_INVALID');
+  }
+}
