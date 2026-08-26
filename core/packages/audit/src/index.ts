@@ -186,3 +186,5 @@ function safeEqualHash(left: string, right: string): boolean {
   }
   return difference === 0;
 }
+
+export * from './sensitive-read.ts';
