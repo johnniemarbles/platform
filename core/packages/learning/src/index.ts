@@ -362,3 +362,5 @@ export function assertCourseVersionTransition(
 export * from './enrollment.ts';
 
 export * from './assessment.ts';
+
+export * from './program-certification.ts';
