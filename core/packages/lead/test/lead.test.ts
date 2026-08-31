@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { validateLeadInput, validateStage, isClosedStage, LeadValidationError, LEAD_STAGES } from '../src/index.ts';
+import {
+  validateLeadInput,
+  validateStage,
+  isClosedStage,
+  isAcceptedLeadSource,
+  LeadValidationError,
+  LEAD_STAGES,
+  OUTBOUND_GTM_LEAD_SOURCE,
+} from '../src/index.ts';
 
 test('a valid lead defaults stage/currency and keeps amount', () => {
   const lead = validateLeadInput({ title: '  Big deal ', amountMinorUnits: 500000 });
@@ -8,6 +16,7 @@ test('a valid lead defaults stage/currency and keeps amount', () => {
   assert.equal(lead.stage, 'NEW');
   assert.equal(lead.currency, 'USD');
   assert.equal(lead.amountMinorUnits, 500000);
+  assert.deepEqual(lead.rawPayload, {});
 });
 
 test('lead title is required and bounded', () => {
@@ -36,4 +45,16 @@ test('stage validation and closed-stage rule', () => {
 
 test('accountId/contactId must be uuids when present', () => {
   assert.throws(() => validateLeadInput({ title: 'D', accountId: 'x' }), /valid identifier/);
+});
+
+test('outbound_gtm is an accepted lead source and keeps raw_payload first', () => {
+  const lead = validateLeadInput({
+    title: 'Warm reply',
+    source: OUTBOUND_GTM_LEAD_SOURCE,
+    rawPayload: { fromEmail: 'a@b.co', proposedClass: 'interested' },
+  });
+  assert.equal(lead.source, 'outbound_gtm');
+  assert.equal(lead.rawPayload.fromEmail, 'a@b.co');
+  assert.equal(isAcceptedLeadSource('outbound_gtm'), true);
+  assert.throws(() => validateLeadInput({ title: 'D', source: 'apollo' }), /Unknown source/);
 });
