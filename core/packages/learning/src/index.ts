@@ -364,3 +364,5 @@ export * from './enrollment.ts';
 export * from './assessment.ts';
 
 export * from './program-certification.ts';
+
+export * from './competency.ts';
