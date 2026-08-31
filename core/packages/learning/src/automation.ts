@@ -110,6 +110,7 @@ export function validateLearningAutomationRuleDraft(
     );
   }
 
+  const enabled = input.enabled !== false;
   const rawPolicyKeys = input.policyKeys ?? [];
   if (!Array.isArray(rawPolicyKeys)) {
     throw new LearningAutomationValidationError(
@@ -126,6 +127,13 @@ export function validateLearningAutomationRuleDraft(
       'policyKeys',
       'DUPLICATE_POLICY_KEY',
       'policyKeys must be unique.',
+    );
+  }
+  if (enabled && policyKeys.length > 0) {
+    throw new LearningAutomationValidationError(
+      'policyKeys',
+      'POLICY_EVALUATOR_UNAVAILABLE',
+      'Policy-bearing Learning automation rules must remain disabled until a Learning policy evaluator is configured.',
     );
   }
 
@@ -146,7 +154,7 @@ export function validateLearningAutomationRuleDraft(
     eventType,
     executorClass: executor as LearningAutomationExecutorClass,
     actionKey,
-    enabled: input.enabled !== false,
+    enabled,
     policyKeys,
     configuration: configuration as Readonly<Record<string, unknown>>,
   };
