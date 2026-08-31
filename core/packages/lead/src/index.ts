@@ -7,7 +7,8 @@
  * Industry Packs relabel the stages; the engine stays neutral.
  *
  * AutoGTM warm replies ingest here as source=outbound_gtm with raw_payload first.
- * Demand generation is not a second CRM.
+ * Inbound demand-capture converts here as source=web_form. Neither is a second CRM.
+ * The 19-stage capture catalogue lives in the extract; this package stays 5-stage.
  */
 
 export const LEAD_STAGES = ['NEW', 'QUALIFIED', 'PROPOSAL', 'WON', 'LOST'] as const;
@@ -20,10 +21,11 @@ export function isClosedStage(stage: LeadStage): boolean {
   return CLOSED_STAGES.includes(stage);
 }
 
-/** Accepted lead sources. outbound_gtm is the AutoGTM / demand-generation ingest. */
+/** Accepted lead sources. outbound_gtm is AutoGTM. web_form is inbound demand-capture. */
 export const LEAD_INGEST_SOURCES = ['manual', 'web_form', 'outbound_gtm'] as const;
 export type LeadIngestSource = (typeof LEAD_INGEST_SOURCES)[number];
 export const OUTBOUND_GTM_LEAD_SOURCE = 'outbound_gtm' as const;
+export const DEMAND_CAPTURE_LEAD_SOURCE = 'web_form' as const;
 
 export function isAcceptedLeadSource(source: string | null | undefined): source is LeadIngestSource {
   return source != null && (LEAD_INGEST_SOURCES as readonly string[]).includes(source);
@@ -41,6 +43,8 @@ export interface CrmLead {
   readonly source: string | null;
   readonly rawPayload: Readonly<Record<string, unknown>>;
   readonly ownerSubjectId: string | null;
+  readonly captureLeadId: string | null;
+  readonly captureLayerId: string | null;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -54,6 +58,8 @@ export interface ValidatedLeadInput {
   readonly rawPayload: Readonly<Record<string, unknown>>;
   readonly accountId: string | null;
   readonly contactId: string | null;
+  readonly captureLeadId: string | null;
+  readonly captureLayerId: string | null;
 }
 
 export class LeadValidationError extends Error {
@@ -129,6 +135,8 @@ export function validateLeadInput(body: unknown): ValidatedLeadInput {
     rawPayload: rawPayload(record.rawPayload),
     accountId: optionalUuid(record.accountId, 'accountId'),
     contactId: optionalUuid(record.contactId, 'contactId'),
+    captureLeadId: optionalUuid(record.captureLeadId, 'captureLeadId'),
+    captureLayerId: optionalStr(record.captureLayerId),
   };
 }
 
@@ -138,4 +146,111 @@ export function validateStage(value: unknown): LeadStage {
     throw new LeadValidationError('stage', `Unknown stage. Expected one of: ${LEAD_STAGES.join(', ')}.`);
   }
   return stageRaw as LeadStage;
+}
+
+/** 19-stage capture catalogue. Lives in the extract. Never stored on platform.crm_leads. */
+export const CAPTURE_JOURNEY_STAGES = [
+  'NEW_ENQUIRY',
+  'CONTACT_ATTEMPTED',
+  'CONTACTED',
+  'QUALIFICATION',
+  'QUALIFIED',
+  'DISCOVERY_SCHEDULED',
+  'DISCOVERY_COMPLETED',
+  'OPPORTUNITY_EVALUATION',
+  'APPLICATION_INVITED',
+  'APPLICATION_STARTED',
+  'APPLICATION_SUBMITTED',
+  'DUE_DILIGENCE',
+  'APPROVAL',
+  'AGREEMENT',
+  'ACTIVATION',
+  'WON',
+  'LOST',
+  'DISQUALIFIED',
+  'NURTURE',
+] as const;
+export type CaptureJourneyStage = (typeof CAPTURE_JOURNEY_STAGES)[number];
+
+const PROPOSAL_CAPTURE_STAGES: ReadonlySet<string> = new Set([
+  'APPLICATION_INVITED',
+  'APPLICATION_STARTED',
+  'APPLICATION_SUBMITTED',
+  'DUE_DILIGENCE',
+  'APPROVAL',
+  'AGREEMENT',
+  'ACTIVATION',
+]);
+
+const QUALIFIED_CAPTURE_STAGES: ReadonlySet<string> = new Set([
+  'QUALIFIED',
+  'DISCOVERY_SCHEDULED',
+  'DISCOVERY_COMPLETED',
+  'OPPORTUNITY_EVALUATION',
+]);
+
+export function isCaptureJourneyStage(value: string): value is CaptureJourneyStage {
+  return (CAPTURE_JOURNEY_STAGES as readonly string[]).includes(value);
+}
+
+/** Map extract journey stage → thin CRM stage. Does not mutate the capture row (I8). */
+export function mapCaptureStageToCrm(stage: string): LeadStage {
+  if (stage === 'WON') return 'WON';
+  if (stage === 'LOST' || stage === 'DISQUALIFIED') return 'LOST';
+  if (PROPOSAL_CAPTURE_STAGES.has(stage)) return 'PROPOSAL';
+  if (QUALIFIED_CAPTURE_STAGES.has(stage)) return 'QUALIFIED';
+  return 'NEW';
+}
+
+export interface CaptureConvertSnapshot {
+  readonly captureLeadId: string;
+  readonly tenantId: string;
+  readonly title?: string;
+  readonly email?: string;
+  readonly captureStage: string;
+  readonly captureLayerId?: string;
+  readonly contactId?: string;
+  readonly accountId?: string;
+  readonly ownerSubjectId?: string;
+  readonly rawPayload?: Record<string, unknown>;
+}
+
+export interface CaptureConvertResult {
+  readonly input: ValidatedLeadInput;
+  readonly capturePreserved: true;
+  readonly deleteCapture: false;
+}
+
+/**
+ * Build a CRM insert from a capture snapshot.
+ * I8: does not delete or rewrite the capture lead. Re-convert is the caller's
+ * job via capture_lead_id uniqueness on platform.crm_leads.
+ */
+export function buildCrmLeadFromCapture(snapshot: CaptureConvertSnapshot): CaptureConvertResult {
+  if (!UUID.test(snapshot.captureLeadId)) {
+    throw new LeadValidationError('captureLeadId', 'captureLeadId must be a valid identifier.');
+  }
+  if (!isCaptureJourneyStage(snapshot.captureStage) && !LEAD_STAGES.includes(snapshot.captureStage as LeadStage)) {
+    throw new LeadValidationError('captureStage', `Unknown capture stage: ${snapshot.captureStage}`);
+  }
+  const email = str(snapshot.email);
+  const title =
+    str(snapshot.title) ||
+    (email ? `Inbound — ${email}`.slice(0, 200) : 'Inbound enquiry');
+  const input = validateLeadInput({
+    title,
+    stage: mapCaptureStageToCrm(snapshot.captureStage),
+    source: DEMAND_CAPTURE_LEAD_SOURCE,
+    rawPayload: {
+      ...(snapshot.rawPayload ?? {}),
+      captureLeadId: snapshot.captureLeadId,
+      captureStage: snapshot.captureStage,
+      captureLayerId: snapshot.captureLayerId ?? null,
+    },
+    accountId: snapshot.accountId ?? null,
+    contactId: snapshot.contactId ?? null,
+    captureLeadId: snapshot.captureLeadId,
+    captureLayerId: snapshot.captureLayerId ?? null,
+  });
+  return { input, capturePreserved: true, deleteCapture: false };
 }
