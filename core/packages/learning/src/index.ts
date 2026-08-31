@@ -368,3 +368,5 @@ export * from './program-certification.ts';
 export * from './competency.ts';
 
 export * from './assignment-automation.ts';
+
+export * from './automation.ts';
