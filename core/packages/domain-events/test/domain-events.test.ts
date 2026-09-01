@@ -70,3 +70,55 @@ test('event version and Pack provenance fail closed', () => {
     /packKey is required/,
   );
 });
+
+
+test('tenant ids use PostgreSQL UUID semantics, including the seeded EXPADIO tenant', () => {
+  const event = createDomainEvent({
+    eventId: '44444444-4444-4444-8444-444444444444',
+    tenantId: '00000000-0000-0000-0000-000000000001',
+    aggregateType: 'tenant.access',
+    aggregateId: 'inv_test',
+    eventType: 'tenant.membership.invited',
+    eventVersion: 1,
+    occurredAt: new Date('2026-09-01T12:00:00.000Z'),
+    actorSubjectId: 'platform-admin',
+    correlationId: 'correlation-postgres-uuid',
+  });
+  assert.equal(event.tenantId, '00000000-0000-0000-0000-000000000001');
+
+  assert.throws(
+    () => createDomainEvent({
+      eventId: '55555555-5555-4555-8555-555555555555',
+      tenantId: '00000000-0000-0000-0000-00000000000z',
+      aggregateType: 'tenant.access',
+      aggregateId: 'inv_test',
+      eventType: 'tenant.membership.invited',
+      eventVersion: 1,
+      occurredAt: new Date(),
+      actorSubjectId: 'platform-admin',
+      correlationId: 'correlation-invalid-tenant',
+    }),
+    (error) =>
+      error instanceof DomainEventValidationError
+      && error.code === 'DOMAIN_EVENT_TENANT_ID_INVALID',
+  );
+});
+
+test('event ids remain strict generated UUIDs even though tenant ids follow PostgreSQL semantics', () => {
+  assert.throws(
+    () => createDomainEvent({
+      eventId: '00000000-0000-0000-0000-000000000001',
+      tenantId: '00000000-0000-0000-0000-000000000001',
+      aggregateType: 'tenant.access',
+      aggregateId: 'inv_test',
+      eventType: 'tenant.membership.invited',
+      eventVersion: 1,
+      occurredAt: new Date(),
+      actorSubjectId: 'platform-admin',
+      correlationId: 'correlation-strict-event-id',
+    }),
+    (error) =>
+      error instanceof DomainEventValidationError
+      && error.code === 'DOMAIN_EVENT_ID_INVALID',
+  );
+});
