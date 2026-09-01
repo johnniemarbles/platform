@@ -1,3 +1,16 @@
+export const POSTGRES_UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * PostgreSQL's uuid type accepts canonical 8-4-4-4-12 hexadecimal UUID text
+ * without requiring RFC version/variant bits. Tenant and other persisted
+ * database identifiers must use this contract so application validation does
+ * not reject rows PostgreSQL already considers valid.
+ */
+export function isPostgresUuid(value: string): boolean {
+  return POSTGRES_UUID_PATTERN.test(value);
+}
+
 export type ActorKind = 'user' | 'party' | 'service' | 'agent';
 
 export interface IdentityContext {
