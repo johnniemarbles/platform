@@ -12,15 +12,15 @@ test('canonical event envelope preserves correlation, causation, and Pack proven
     eventId: '11111111-1111-4111-8111-111111111111',
     tenantId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
     aggregateType: 'crm.case',
-    aggregateId: 'treatment-1',
-    eventType: 'Treatment.StageChanged',
+    aggregateId: 'service-request-1',
+    eventType: 'ServiceRequest.StageChanged',
     eventVersion: 1,
     occurredAt,
     recordedAt,
-    actorSubjectId: 'dentist-1',
+    actorSubjectId: 'agent-1',
     correlationId: 'correlation-1',
     causationId: 'command-1',
-    packKey: 'dentex',
+    packKey: 'acme-corp',
     packVersion: 2,
     payload: { fromStage: 'INTAKE', toStage: 'IN_PROGRESS' },
     metadata: { source: 'workflow' },
@@ -28,7 +28,7 @@ test('canonical event envelope preserves correlation, causation, and Pack proven
 
   assert.equal(event.correlationId, 'correlation-1');
   assert.equal(event.causationId, 'command-1');
-  assert.equal(event.packKey, 'dentex');
+  assert.equal(event.packKey, 'acme-corp');
   assert.equal(event.packVersion, 2);
   assert.deepEqual(event.payload, {
     fromStage: 'INTAKE',
