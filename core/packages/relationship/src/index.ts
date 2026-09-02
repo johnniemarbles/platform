@@ -133,3 +133,5 @@ export function isSingleCardinality(
 ): boolean {
   return cardinality === 'ONE' || cardinality === 'ZERO_OR_ONE';
 }
+
+export * from './perspectives.ts';
