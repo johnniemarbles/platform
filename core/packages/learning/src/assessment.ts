@@ -8,6 +8,10 @@ export type LearningQuestionType = (typeof QUESTION_TYPES)[number];
 export const ASSESSMENT_TYPES = ['QUIZ', 'EXAM', 'PRACTICE'] as const;
 export type LearningAssessmentType = (typeof ASSESSMENT_TYPES)[number];
 
+export const ASSESSMENT_COMPLETION_REQUIREMENTS = ['OPTIONAL', 'REQUIRED'] as const;
+export type LearningAssessmentCompletionRequirement =
+  (typeof ASSESSMENT_COMPLETION_REQUIREMENTS)[number];
+
 export const ASSESSMENT_VERSION_STATES = [
   'DRAFT',
   'PUBLISHED',
@@ -44,6 +48,7 @@ export interface LearningAssessmentDraft {
   readonly maxAttempts: number;
   readonly timeLimitSeconds: number | null;
   readonly courseVersionId: string | null;
+  readonly completionRequirement: LearningAssessmentCompletionRequirement;
   readonly items: readonly LearningAssessmentItemDraft[];
 }
 
@@ -274,6 +279,25 @@ export function validateAssessmentDraft(value: unknown): LearningAssessmentDraft
     ? null
     : uuid(courseVersionIdRaw, 'courseVersionId');
 
+  const completionRequirementRaw = input.completionRequirement ?? 'OPTIONAL';
+  if (
+    typeof completionRequirementRaw !== 'string'
+    || !(ASSESSMENT_COMPLETION_REQUIREMENTS as readonly string[]).includes(completionRequirementRaw)
+  ) {
+    throw new LearningAssessmentValidationError(
+      'completionRequirement',
+      'INVALID_COMPLETION_REQUIREMENT',
+      'completionRequirement must be OPTIONAL or REQUIRED.',
+    );
+  }
+  if (completionRequirementRaw === 'REQUIRED' && courseVersionId === null) {
+    throw new LearningAssessmentValidationError(
+      'completionRequirement',
+      'REQUIRED_ASSESSMENT_NEEDS_COURSE',
+      'A required assessment must be linked to a course version.',
+    );
+  }
+
   const timeLimitRaw = input.timeLimitSeconds;
   const timeLimitSeconds = timeLimitRaw === undefined || timeLimitRaw === null || timeLimitRaw === ''
     ? null
@@ -287,6 +311,7 @@ export function validateAssessmentDraft(value: unknown): LearningAssessmentDraft
     maxAttempts: positiveInteger(input.maxAttempts ?? 1, 'maxAttempts', 100),
     timeLimitSeconds,
     courseVersionId,
+    completionRequirement: completionRequirementRaw as LearningAssessmentCompletionRequirement,
     items,
   };
 }

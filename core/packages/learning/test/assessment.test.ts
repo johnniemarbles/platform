@@ -76,6 +76,7 @@ test('assessment publication requires unique pinned question versions', () => {
       points: 2,
     }],
   });
+  assert.equal(draft.completionRequirement, 'OPTIONAL');
   assert.doesNotThrow(() => assertAssessmentPublishable(draft));
 
   assert.throws(
@@ -94,4 +95,32 @@ test('score percentage is bounded and stable', () => {
   assert.equal(scorePercent(4, 5), 80);
   assert.equal(scorePercent(2, 3), 66.67);
   assert.equal(scorePercent(9, 5), 100);
+});
+
+
+test('required assessments must be course linked', () => {
+  assert.throws(
+    () => validateAssessmentDraft({
+      title: 'Standalone required exam',
+      completionRequirement: 'REQUIRED',
+      items: [{
+        questionVersionId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        position: 1,
+        points: 1,
+      }],
+    }),
+    /required assessment must be linked to a course version/i,
+  );
+
+  const linked = validateAssessmentDraft({
+    title: 'Course gate',
+    courseVersionId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    completionRequirement: 'REQUIRED',
+    items: [{
+      questionVersionId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      position: 1,
+      points: 1,
+    }],
+  });
+  assert.equal(linked.completionRequirement, 'REQUIRED');
 });
