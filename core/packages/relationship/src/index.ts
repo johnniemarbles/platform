@@ -1,3 +1,5 @@
+import type { RelationshipPerspective } from './perspectives.ts';
+
 /**
  * @platform-core/relationship — horizontal business-relationship primitives.
  *
@@ -45,6 +47,11 @@ export interface EntityRelationship {
   readonly tenantId: string;
   readonly source: EntityReference;
   readonly relationshipKey: string;
+  /**
+   * Governed catalog classification. NULL means a legacy/unclassified edge
+   * that must not participate in a perspective-specific decision.
+   */
+  readonly perspective: RelationshipPerspective | null;
   readonly target: EntityReference;
   readonly status: RelationshipStatus;
   readonly validFrom: Date;

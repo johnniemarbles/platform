@@ -14,21 +14,29 @@ export interface PerspectiveProjection {
   readonly relationships: readonly EntityRelationship[];
 }
 
+export function isRelationshipPerspective(
+  value: unknown,
+): value is RelationshipPerspective {
+  return typeof value === 'string'
+    && (RELATIONSHIP_PERSPECTIVES as readonly string[]).includes(value);
+}
+
 /**
- * Projects one authoritative edge set into the perspective needed by a
- * decision. An edge may declare allowed perspectives in attributes.perspectives;
- * absent metadata is intentionally visible in every projection for backwards
- * compatibility. The resolver never creates or mutates relationships.
+ * Projects authoritative relationship edges into one decision perspective.
+ *
+ * Unclassified legacy edges are excluded by default. Callers may opt into
+ * them only for migration/diagnostic surfaces; governed decisions must use
+ * the default fail-closed behavior.
  */
 export function projectRelationships(
   relationships: readonly EntityRelationship[],
   perspective: RelationshipPerspective,
+  options: { readonly includeUnclassified?: boolean } = {},
 ): PerspectiveProjection {
-  const projected = relationships.filter((relationship) => {
-    const values = relationship.attributes.perspectives;
-    if (!Array.isArray(values) || values.length === 0) return true;
-    return values.includes(perspective);
-  });
+  const projected = relationships.filter((relationship) =>
+    relationship.perspective === perspective
+    || (options.includeUnclassified === true && relationship.perspective === null),
+  );
   return { perspective, relationships: projected };
 }
 
