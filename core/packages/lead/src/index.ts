@@ -148,6 +148,41 @@ export function validateStage(value: unknown): LeadStage {
   return stageRaw as LeadStage;
 }
 
+/**
+ * The 5-stage CRM transition graph. STANDARD moves are the expected forward
+ * path; OVERRIDE moves (skips, backward steps, reopening a LOST lead) are allowed
+ * only with a recorded reason; anything else — including leaving the terminal WON
+ * stage — is ILLEGAL. This replaces "last writer wins" with governed transitions.
+ */
+const STANDARD_LEAD_TRANSITIONS: Record<LeadStage, readonly LeadStage[]> = {
+  NEW: ['QUALIFIED', 'LOST'],
+  QUALIFIED: ['PROPOSAL', 'LOST'],
+  PROPOSAL: ['WON', 'LOST'],
+  WON: [],
+  LOST: [],
+};
+const OVERRIDE_LEAD_TRANSITIONS: Record<LeadStage, readonly LeadStage[]> = {
+  NEW: ['PROPOSAL', 'WON'],
+  QUALIFIED: ['NEW', 'WON'],
+  PROPOSAL: ['QUALIFIED', 'NEW'],
+  WON: [], // terminal: WON never transitions again
+  LOST: ['NEW', 'QUALIFIED', 'PROPOSAL'], // reopen, with a reason
+};
+
+export type LeadTransitionKind = 'NOOP' | 'STANDARD' | 'OVERRIDE' | 'ILLEGAL';
+
+export function classifyLeadTransition(from: LeadStage, to: LeadStage): LeadTransitionKind {
+  if (from === to) return 'NOOP';
+  if (STANDARD_LEAD_TRANSITIONS[from].includes(to)) return 'STANDARD';
+  if (OVERRIDE_LEAD_TRANSITIONS[from].includes(to)) return 'OVERRIDE';
+  return 'ILLEGAL';
+}
+
+/** OVERRIDE transitions demand an explicit reason for the audit trail. */
+export function leadTransitionRequiresReason(kind: LeadTransitionKind): boolean {
+  return kind === 'OVERRIDE';
+}
+
 /** 19-stage capture catalogue. Lives in the extract. Never stored on platform.crm_leads. */
 export const CAPTURE_JOURNEY_STAGES = [
   'NEW_ENQUIRY',
