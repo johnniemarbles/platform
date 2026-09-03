@@ -188,3 +188,4 @@ function safeEqualHash(left: string, right: string): boolean {
 }
 
 export * from './sensitive-read.ts';
+export * from './authorization-sink.ts';
