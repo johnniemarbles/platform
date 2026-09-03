@@ -1,3 +1,6 @@
+import { isLessonContentDocument, validateLessonContentDocument } from './content-block.ts';
+import type { LessonContentDocument } from './content-block.ts';
+
 export const COURSE_STATUSES = ['ACTIVE', 'ARCHIVED'] as const;
 export type CourseStatus = (typeof COURSE_STATUSES)[number];
 
@@ -38,7 +41,7 @@ export interface LearningLessonInput {
   readonly position: number;
   readonly required: boolean;
   readonly estimatedMinutes: number | null;
-  readonly content: Readonly<Record<string, unknown>>;
+  readonly content: LessonContentDocument | Readonly<Record<string, unknown>>;
 }
 
 export interface LearningModuleInput {
@@ -266,10 +269,12 @@ export function validateCourseDraft(value: unknown): ValidatedCourseDraft {
           lesson.estimatedMinutes,
           `modules[${moduleIndex}].lessons[${lessonIndex}].estimatedMinutes`,
         ),
-        content: record(
-          lesson.content,
-          `modules[${moduleIndex}].lessons[${lessonIndex}].content`,
-        ),
+        content: isLessonContentDocument(lesson.content)
+          ? validateLessonContentDocument(lesson.content)
+          : record(
+            lesson.content,
+            `modules[${moduleIndex}].lessons[${lessonIndex}].content`,
+          ),
       };
     });
     uniqueKeys(
@@ -370,3 +375,5 @@ export * from './competency.ts';
 export * from './assignment-automation.ts';
 
 export * from './automation.ts';
+
+export * from './content-block.ts';
