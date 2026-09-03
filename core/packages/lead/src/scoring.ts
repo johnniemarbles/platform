@@ -7,6 +7,9 @@ export const QUALIFICATION_RESPONSES = [
 ] as const;
 export type QualificationResponse = (typeof QUALIFICATION_RESPONSES)[number];
 
+export const LEAD_SCORE_DECIMAL_PLACES = 4;
+const LEAD_SCORE_SCALE = 10 ** LEAD_SCORE_DECIMAL_PLACES;
+
 export interface LeadScoreComponentDefinition {
   readonly key: string;
   readonly criterionKey: string;
@@ -72,6 +75,13 @@ function validResponse(value: unknown): value is QualificationResponse {
     && (QUALIFICATION_RESPONSES as readonly string[]).includes(value);
 }
 
+export function canonicalLeadScoreNumber(value: number): number {
+  if (!Number.isFinite(value)) {
+    throw new LeadScoringValidationError('LEAD_SCORING_NUMBER_INVALID', 'Score value must be finite.');
+  }
+  return Math.round((value + Number.EPSILON) * LEAD_SCORE_SCALE) / LEAD_SCORE_SCALE;
+}
+
 export function validateLeadScoringProfileDefinition(
   input: LeadScoringProfileDefinition,
 ): LeadScoringProfileDefinition {
@@ -115,8 +125,14 @@ export function validateLeadScoringProfileDefinition(
   const bandThresholds: Record<string, number> = {};
   for (const [bandRaw, thresholdRaw] of thresholdEntries) {
     const band = nonBlank(bandRaw, 'band');
-    const threshold = finiteNumber(thresholdRaw, `bandThresholds.${band}`);
+    const threshold = canonicalLeadScoreNumber(finiteNumber(thresholdRaw, `bandThresholds.${band}`));
     bandThresholds[band] = threshold;
+  }
+  if (!Object.values(bandThresholds).some((threshold) => threshold <= 0)) {
+    throw new LeadScoringValidationError(
+      'LEAD_SCORING_ZERO_BAND_REQUIRED',
+      'At least one score band threshold must classify a zero score.',
+    );
   }
 
   return { components, bandThresholds };
@@ -139,8 +155,8 @@ export function calculateLeadScore(
   const components = validated.components.map((component) => {
     const response = latest.get(component.criterionKey) ?? null;
     const basePoints = response === null ? 0 : (component.responsePoints[response] ?? 0);
-    const pointsAwarded = basePoints * component.weight;
-    const weightedPossible = component.pointsPossible * component.weight;
+    const pointsAwarded = canonicalLeadScoreNumber(basePoints * component.weight);
+    const weightedPossible = canonicalLeadScoreNumber(component.pointsPossible * component.weight);
     return {
       componentKey: component.key,
       rawValue: response,
@@ -153,7 +169,9 @@ export function calculateLeadScore(
     };
   });
 
-  const totalScore = components.reduce((sum, component) => sum + component.pointsAwarded, 0);
+  const totalScore = canonicalLeadScoreNumber(
+    components.reduce((sum, component) => sum + component.pointsAwarded, 0),
+  );
   const sortedBands = Object.entries(validated.bandThresholds)
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   const matched = sortedBands.find(([, threshold]) => totalScore >= threshold);
