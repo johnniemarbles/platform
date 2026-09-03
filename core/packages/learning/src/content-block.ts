@@ -136,17 +136,24 @@ function validateAccessibility(
   if (input.decorative !== undefined && typeof input.decorative !== 'boolean') {
     fail(`${field}.decorative`, 'INVALID_BOOLEAN', 'decorative must be a boolean.');
   }
-  return {
-    label: optionalText(input.label, `${field}.label`, 500),
-    description: optionalText(input.description, `${field}.description`, 2_000),
-    decorative: input.decorative === true,
-    transcriptAssetId: input.transcriptAssetId === undefined
-      ? undefined
-      : assetId(input.transcriptAssetId, `${field}.transcriptAssetId`),
-    captionsAssetId: input.captionsAssetId === undefined
-      ? undefined
-      : assetId(input.captionsAssetId, `${field}.captionsAssetId`),
-  };
+  const result: Record<string, unknown> = {};
+  const label = optionalText(input.label, `${field}.label`, 500);
+  if (label !== undefined) result.label = label;
+  
+  const description = optionalText(input.description, `${field}.description`, 2_000);
+  if (description !== undefined) result.description = description;
+  
+  if (input.decorative !== undefined) result.decorative = input.decorative === true;
+  
+  if (input.transcriptAssetId !== undefined) {
+    result.transcriptAssetId = assetId(input.transcriptAssetId, `${field}.transcriptAssetId`);
+  }
+  
+  if (input.captionsAssetId !== undefined) {
+    result.captionsAssetId = assetId(input.captionsAssetId, `${field}.captionsAssetId`);
+  }
+  
+  return result as LessonContentBlock['accessibility'];
 }
 
 function validateData(
