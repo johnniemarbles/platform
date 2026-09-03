@@ -5,6 +5,7 @@ import {
   isLessonContentDocument,
   validateLessonContentDocument,
 } from '../src/content-block.ts';
+import { validateCourseDraft } from '../src/index.ts';
 
 const assetId = 'c56a4180-65aa-42ec-a945-5fd21dec0538';
 
@@ -135,4 +136,35 @@ test('validates canonical asset references and namespaced extensions', () => {
       data: { extensionKey: 'dentex.clinical-simulation', payload: { mode: 'guided' } },
     }],
   }));
+});
+
+test('course draft authoring invokes the governed block contract', () => {
+  assert.throws(
+    () => validateCourseDraft({
+      title: 'Unsafe course',
+      language: 'en',
+      modules: [{
+        moduleKey: 'module',
+        title: 'Module',
+        position: 1,
+        lessons: [{
+          lessonKey: 'lesson',
+          title: 'Lesson',
+          activityType: 'TEXT',
+          position: 1,
+          content: {
+            schemaVersion: 1,
+            blocks: [{
+              id: 'bad-embed',
+              type: 'EMBED',
+              position: 1,
+              data: { url: 'data:text/html,unsafe', title: 'Unsafe' },
+            }],
+          },
+        }],
+      }],
+    }),
+    (error: unknown) => error instanceof LessonContentValidationError
+      && error.code === 'UNSAFE_URL',
+  );
 });
