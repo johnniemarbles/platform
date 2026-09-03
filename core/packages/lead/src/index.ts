@@ -254,3 +254,5 @@ export function buildCrmLeadFromCapture(snapshot: CaptureConvertSnapshot): Captu
   });
   return { input, capturePreserved: true, deleteCapture: false };
 }
+
+export * from './scoring.ts';
