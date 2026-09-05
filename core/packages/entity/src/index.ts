@@ -23,3 +23,4 @@ export * from './ownership-interest.ts';
 export * from './closure.ts';
 export * from './genesis.ts';
 export * from './errors.ts';
+export * from './governance-policy.ts';
