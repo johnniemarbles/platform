@@ -47,3 +47,58 @@ export async function resolveEffectivePublishingPolicy(
   const configured = await repo.resolveConfiguredPolicy(input.nodeId, input.tenantId);
   return configured ?? DEFAULT_PUBLISHING_POLICY;
 }
+
+export interface ApprovalRoutingResult {
+  readonly targetApproverNodeId: string;
+  readonly policyApplied: ContentPublishingPolicy;
+}
+
+/**
+ * The ascending-lookup slice of ClosureRepository this decision needs.
+ * Declared as a Pick here (rather than importing the full closure.ts
+ * interface) to keep this module's dependency surface to exactly what it uses.
+ */
+export interface ApprovalRoutingClosure {
+  governanceRoot(nodeId: string, tenantId: string): Promise<string>;
+  territorialAuthority(nodeId: string, tenantId: string): Promise<string | null>;
+}
+
+/**
+ * Decides which entity node's approval queue a staged action should route to,
+ * given the resolved publishing policy for the node that initiated it:
+ *
+ *  - COUNTRY_BRAND_MANDATORY: routes to the ultimate governance root, however
+ *    far up the tree that is -- even an action from a Unit routes all the
+ *    way to Brand HQ.
+ *  - STATE_MASTER_SIGN_OFF: routes to the initiating node's direct
+ *    territorial authority. Falls back to the initiating node itself if none
+ *    is configured, rather than silently routing nowhere.
+ *  - LOCAL_ADMIN_SIGN_OFF / DIRECT_AUTONOMOUS: the initiating node is its own
+ *    approver (DIRECT_AUTONOMOUS callers are expected not to stage an
+ *    approval at all; this function only decides *where*, not *whether*).
+ */
+export async function routeApprovalTarget(
+  policyRepo: GovernancePolicyRepository,
+  closureRepo: ApprovalRoutingClosure,
+  input: { readonly nodeId: string; readonly tenantId: string },
+): Promise<ApprovalRoutingResult> {
+  const policyApplied = await resolveEffectivePublishingPolicy(policyRepo, input);
+
+  switch (policyApplied) {
+    case 'COUNTRY_BRAND_MANDATORY': {
+      const root = await closureRepo.governanceRoot(input.nodeId, input.tenantId);
+      return { targetApproverNodeId: root, policyApplied };
+    }
+    case 'STATE_MASTER_SIGN_OFF': {
+      const authority = await closureRepo.territorialAuthority(input.nodeId, input.tenantId);
+      return { targetApproverNodeId: authority ?? input.nodeId, policyApplied };
+    }
+    case 'LOCAL_ADMIN_SIGN_OFF':
+    case 'DIRECT_AUTONOMOUS':
+      return { targetApproverNodeId: input.nodeId, policyApplied };
+    default: {
+      const exhaustiveCheck: never = policyApplied;
+      throw new Error(`Unhandled publishing policy: ${String(exhaustiveCheck)}`);
+    }
+  }
+}

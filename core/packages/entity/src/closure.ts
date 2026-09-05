@@ -74,6 +74,21 @@ export interface ClosureRepository {
     purpose: ClosurePurpose,
     tenantId: string,
   ): Promise<boolean>;
+
+  /**
+   * Ascending counterpart to governanceClosure: walks GOVERNANCE_PARENT edges
+   * upward from nodeId to the topmost node with no further governance parent.
+   * Returns nodeId itself if it has none. Used to route a
+   * COUNTRY_BRAND_MANDATORY approval to the ultimate governance authority.
+   */
+  governanceRoot(nodeId: string, tenantId: string): Promise<string>;
+
+  /**
+   * Ascending counterpart to territorialClosure: returns the node holding
+   * direct TERRITORIAL_JURISDICTION over nodeId, or null if none is
+   * configured. Used to route a STATE_MASTER_SIGN_OFF approval.
+   */
+  territorialAuthority(nodeId: string, tenantId: string): Promise<string | null>;
 }
 
 /**
