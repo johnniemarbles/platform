@@ -7,6 +7,9 @@ export type CourseStatus = (typeof COURSE_STATUSES)[number];
 export const COURSE_VISIBILITIES = ['PRIVATE', 'TENANT', 'PUBLIC'] as const;
 export type CourseVisibility = (typeof COURSE_VISIBILITIES)[number];
 
+export const COURSE_ENROLLMENT_MODES = ['OPEN', 'ASSIGNED_ONLY', 'APPROVAL_REQUIRED'] as const;
+export type CourseEnrollmentMode = (typeof COURSE_ENROLLMENT_MODES)[number];
+
 export const COURSE_VERSION_STATES = [
   'DRAFT',
   'IN_REVIEW',
@@ -57,6 +60,9 @@ export interface CourseDraftInput {
   readonly description: string;
   readonly language: string;
   readonly visibility: CourseVisibility;
+  readonly enrollmentMode?: CourseEnrollmentMode;
+  readonly certificateEnabled?: boolean;
+  readonly passingScore?: number | null;
   readonly estimatedMinutes: number | null;
   readonly learningObjectives: readonly string[];
   readonly modules: readonly LearningModuleInput[];
@@ -68,6 +74,9 @@ export interface ValidatedCourseDraft {
   readonly description: string;
   readonly language: string;
   readonly visibility: CourseVisibility;
+  readonly enrollmentMode: CourseEnrollmentMode;
+  readonly certificateEnabled: boolean;
+  readonly passingScore: number | null;
   readonly estimatedMinutes: number | null;
   readonly learningObjectives: readonly string[];
   readonly modules: readonly LearningModuleInput[];
@@ -119,6 +128,14 @@ function positiveMinutes(value: unknown, field: string): number | null {
       'INVALID_DURATION',
       `${field} must be a positive integer number of minutes.`,
     );
+  }
+  return Number(value);
+}
+
+function percentage(value: unknown, field: string): number | null {
+  if (value === undefined || value === null || value === '') return null;
+  if (!Number.isInteger(value) || Number(value) < 0 || Number(value) > 100) {
+    throw new LearningValidationError(field, 'INVALID_PERCENTAGE', `${field} must be an integer from 0 to 100.`);
   }
   return Number(value);
 }
@@ -181,6 +198,24 @@ export function validateCourseDraft(value: unknown): ValidatedCourseDraft {
     || !(COURSE_VISIBILITIES as readonly string[]).includes(visibilityRaw)
   ) {
     throw new LearningValidationError('visibility', 'INVALID_VISIBILITY', 'Unknown course visibility.');
+  }
+  const enrollmentModeRaw = input.enrollmentMode ?? 'ASSIGNED_ONLY';
+  if (
+    typeof enrollmentModeRaw !== 'string'
+    || !(COURSE_ENROLLMENT_MODES as readonly string[]).includes(enrollmentModeRaw)
+  ) {
+    throw new LearningValidationError(
+      'enrollmentMode',
+      'INVALID_ENROLLMENT_MODE',
+      'Unknown course enrollment mode.',
+    );
+  }
+  if (input.certificateEnabled !== undefined && typeof input.certificateEnabled !== 'boolean') {
+    throw new LearningValidationError(
+      'certificateEnabled',
+      'INVALID_BOOLEAN',
+      'certificateEnabled must be a boolean.',
+    );
   }
 
   const language = nonBlank(input.language ?? 'en', 'language', 32);
@@ -302,6 +337,9 @@ export function validateCourseDraft(value: unknown): ValidatedCourseDraft {
     description: optionalText(input.description, 'description', 20000),
     language,
     visibility: visibilityRaw as CourseVisibility,
+    enrollmentMode: enrollmentModeRaw as CourseEnrollmentMode,
+    certificateEnabled: input.certificateEnabled === true,
+    passingScore: percentage(input.passingScore, 'passingScore'),
     estimatedMinutes: positiveMinutes(input.estimatedMinutes, 'estimatedMinutes'),
     learningObjectives,
     modules,

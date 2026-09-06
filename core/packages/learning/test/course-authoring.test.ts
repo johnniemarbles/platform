@@ -42,6 +42,32 @@ test('draft authoring normalizes and validates nested modules and lessons', () =
   assert.doesNotThrow(() => assertCoursePublishable(draft));
 });
 
+test('course operational settings are explicit and bounded', () => {
+  const draft = validateCourseDraft({
+    ...publishable(),
+    enrollmentMode: 'APPROVAL_REQUIRED',
+    certificateEnabled: true,
+    passingScore: 85,
+  });
+  assert.equal(draft.enrollmentMode, 'APPROVAL_REQUIRED');
+  assert.equal(draft.certificateEnabled, true);
+  assert.equal(draft.passingScore, 85);
+
+  const defaults = publishable();
+  assert.equal(defaults.enrollmentMode, 'ASSIGNED_ONLY');
+  assert.equal(defaults.certificateEnabled, false);
+  assert.equal(defaults.passingScore, null);
+
+  assert.throws(
+    () => validateCourseDraft({ ...publishable(), enrollmentMode: 'AUTO' }),
+    /Unknown course enrollment mode/,
+  );
+  assert.throws(
+    () => validateCourseDraft({ ...publishable(), passingScore: 101 }),
+    /integer from 0 to 100/,
+  );
+});
+
 test('publication requires objectives, modules, and lessons', () => {
   assert.throws(
     () => assertCoursePublishable(validateCourseDraft({
