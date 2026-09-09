@@ -415,3 +415,5 @@ export * from './assignment-automation.ts';
 export * from './automation.ts';
 
 export * from './content-block.ts';
+
+export * from './interoperability.ts';
