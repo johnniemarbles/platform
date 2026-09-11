@@ -7,5 +7,8 @@
   "dependencies": {
     "@platform-core/tenancy": "workspace:*",
     "@platform-core/tenancy-persistence": "workspace:*"
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --test test/*.test.ts"
   }
 }
