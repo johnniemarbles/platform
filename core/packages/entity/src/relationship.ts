@@ -39,7 +39,7 @@ export function isSingletonRelationship(type: RelationshipType): boolean {
   return SINGLETON_RELATIONSHIP_TYPES.has(type);
 }
 
-export const RELATIONSHIP_STATUSES = ['ACTIVE', 'SUPERSEDED', 'TERMINATED'] as const;
+export const RELATIONSHIP_STATUSES = ['ACTIVE', 'SUPERSEDED', 'TERMINATED', 'DRAFT', 'DISCARDED'] as const;
 export type RelationshipStatus = (typeof RELATIONSHIP_STATUSES)[number];
 
 export interface EntityRelationship {
