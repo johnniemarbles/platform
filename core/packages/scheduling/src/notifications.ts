@@ -61,8 +61,20 @@ export const SCHEDULING_NOTIFICATION_PRESETS: readonly SchedulingNotificationPre
       'Service: {{serviceName}}',
       'When: {{startsAt}} – {{endsAt}} ({{timezone}})',
       'Reference: {{appointmentId}}',
+      '',
+      'Manage or cancel: {{manageUrl}}',
+      'If the link does not work, open /book/manage and paste this token:',
+      '{{managementToken}}',
     ].join('\n'),
-    requiredVariables: ['serviceName', 'startsAt', 'endsAt', 'timezone', 'appointmentId'],
+    requiredVariables: [
+      'serviceName',
+      'startsAt',
+      'endsAt',
+      'timezone',
+      'appointmentId',
+      'manageUrl',
+      'managementToken',
+    ],
   },
   {
     presetKey: 'REMINDER',
@@ -82,8 +94,19 @@ export const SCHEDULING_NOTIFICATION_PRESETS: readonly SchedulingNotificationPre
       'Service: {{serviceName}}',
       'When: {{startsAt}} – {{endsAt}} ({{timezone}})',
       'Reference: {{appointmentId}}',
+      '',
+      'Manage or cancel: {{manageUrl}}',
+      'Token: {{managementToken}}',
     ].join('\n'),
-    requiredVariables: ['serviceName', 'startsAt', 'endsAt', 'timezone', 'appointmentId'],
+    requiredVariables: [
+      'serviceName',
+      'startsAt',
+      'endsAt',
+      'timezone',
+      'appointmentId',
+      'manageUrl',
+      'managementToken',
+    ],
   },
   {
     presetKey: 'CANCELLATION',
@@ -137,4 +160,17 @@ export function getSchedulingNotificationPreset(
   const found = SCHEDULING_NOTIFICATION_PRESETS.find((p) => p.presetKey === key);
   if (!found) throw new Error(`Unknown scheduling notification preset: ${key}`);
   return found;
+}
+
+/** Absolute or path manage URL for public cancel/reschedule. */
+export function buildSchedulingManageUrl(
+  managementToken: string,
+  publicOrigin?: string | null,
+): string {
+  const token = encodeURIComponent(managementToken);
+  const origin = (publicOrigin ?? process.env.NEXT_PUBLIC_BRAND_WEB_URL ?? '')
+    .trim()
+    .replace(/\/$/, '');
+  if (origin) return `${origin}/book/manage?token=${token}`;
+  return `/book/manage?token=${token}`;
 }
