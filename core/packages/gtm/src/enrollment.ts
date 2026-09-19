@@ -197,7 +197,7 @@ export function listDispatchableEnrollments(
   return rows.filter((row) => mayDispatchEnrollmentStep(row));
 }
 
-import type { ReplyClass } from './index';
+import type { ReplyClass } from './index.ts';
 
 /** Map reply classification to an enrollment event proposal (still requires policy/human for legal acts). */
 export function enrollmentEventFromReplyClass(

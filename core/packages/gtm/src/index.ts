@@ -249,11 +249,11 @@ export {
   listDispatchableEnrollments,
   enrollmentEventFromReplyClass,
   nextTouchNodeKey,
-} from './enrollment';
+} from './enrollment.ts';
 export type {
   EnrollmentStatus,
   EnrollmentEvent,
   EnrollmentSnapshot,
   EnrollmentTransitionResult,
   EnrollmentDispatchCandidate,
-} from './enrollment';
+} from './enrollment.ts';
