@@ -1,4 +1,5 @@
 import type { Logger } from './logger.ts';
+import { recordGateMetric } from './metrics.ts';
 
 /**
  * One enforcement gate's outcome, as a log line.
@@ -36,6 +37,12 @@ export interface GateLogInput {
  * regardless.
  */
 export function logGate(logger: Logger, input: GateLogInput): void {
+  recordGateMetric({
+    gate: input.gate,
+    verdict: input.verdict,
+    elapsedMs: input.elapsedMs,
+  });
+
   const line = {
     gate: input.gate,
     ordinal: input.ordinal,
