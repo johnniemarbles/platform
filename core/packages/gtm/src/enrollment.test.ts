@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, it } from 'node:test';
+import * as assert from 'node:assert';
 import {
   applyEnrollmentEvent,
   mayDispatchEnrollmentStep,
@@ -26,56 +27,56 @@ const active: EnrollmentSnapshot = {
 describe('enrollment state machine', () => {
   it('pauses active on scheduling confirm', () => {
     const r = applyEnrollmentEvent(active, { type: 'SCHEDULING_CONFIRMED' }, '2026-09-19T00:00:00.000Z');
-    expect(r.ok).toBe(true);
-    expect(r.next.enrollmentStatus).toBe('paused_by_system');
-    expect(r.next.pausedAt).toBe('2026-09-19T00:00:00.000Z');
+    assert.strictEqual(r.ok, true);
+    assert.strictEqual(r.next.enrollmentStatus, 'paused_by_system');
+    assert.strictEqual(r.next.pausedAt, '2026-09-19T00:00:00.000Z');
   });
 
   it('resumes only system pause on cancel', () => {
     const paused = applyEnrollmentEvent(active, { type: 'SCHEDULING_COMPLETED' }).next;
     const r = applyEnrollmentEvent(paused, { type: 'SCHEDULING_CANCELLED' });
-    expect(r.next.enrollmentStatus).toBe('active');
-    expect(r.next.pausedAt).toBeNull();
+    assert.strictEqual(r.next.enrollmentStatus, 'active');
+    assert.strictEqual(r.next.pausedAt, null);
   });
 
   it('does not resume user pause on cancel', () => {
     const userPaused = applyEnrollmentEvent(active, { type: 'USER_PAUSE' }).next;
     const r = applyEnrollmentEvent(userPaused, { type: 'SCHEDULING_NO_SHOW' });
-    expect(r.next.enrollmentStatus).toBe('paused_by_user');
+    assert.strictEqual(r.next.enrollmentStatus, 'paused_by_user');
   });
 
   it('blocks advance when sales-cycle locked', () => {
     const locked: EnrollmentSnapshot = { ...active, activeSalesCycleLocked: true };
     const r = applyEnrollmentEvent(locked, { type: 'ADVANCE_STEP', nextNodeKey: 'touch_2' });
-    expect(r.ok).toBe(false);
-    expect(mayDispatchEnrollmentStep(locked)).toBe(false);
+    assert.strictEqual(r.ok, false);
+    assert.strictEqual(mayDispatchEnrollmentStep(locked), false);
   });
 
   it('advances cursor when active and unlocked', () => {
     const r = applyEnrollmentEvent(active, { type: 'ADVANCE_STEP', nextNodeKey: 'touch_2' });
-    expect(r.ok).toBe(true);
-    expect(r.next.currentNodeKey).toBe('touch_2');
-    expect(mayDispatchEnrollmentStep(r.next)).toBe(true);
+    assert.strictEqual(r.ok, true);
+    assert.strictEqual(r.next.currentNodeKey, 'touch_2');
+    assert.strictEqual(mayDispatchEnrollmentStep(r.next), true);
   });
 
   it('aborts on unsubscribe reply mapping', () => {
     const ev = enrollmentEventFromReplyClass('unsubscribe');
-    expect(ev?.type).toBe('UNSUBSCRIBE');
+    assert.strictEqual(ev?.type, 'UNSUBSCRIBE');
     const r = applyEnrollmentEvent(active, ev!);
-    expect(r.next.enrollmentStatus).toBe('aborted');
+    assert.strictEqual(r.next.enrollmentStatus, 'aborted');
   });
 
   it('rejects transitions from completed', () => {
     const done = applyEnrollmentEvent(active, { type: 'SEQUENCE_EXHAUSTED' }).next;
     const r = applyEnrollmentEvent(done, { type: 'USER_PAUSE' });
-    expect(r.ok).toBe(false);
+    assert.strictEqual(r.ok, false);
   });
 
   it('nextTouchNodeKey increments sequential touches', () => {
-    expect(nextTouchNodeKey('touch_1')).toBe('touch_2');
-    expect(nextTouchNodeKey('touch_9')).toBe('touch_10');
-    expect(nextTouchNodeKey(null)).toBe('touch_2');
-    expect(nextTouchNodeKey('custom_node')).toBe('touch_2');
+    assert.strictEqual(nextTouchNodeKey('touch_1'), 'touch_2');
+    assert.strictEqual(nextTouchNodeKey('touch_9'), 'touch_10');
+    assert.strictEqual(nextTouchNodeKey(null), 'touch_2');
+    assert.strictEqual(nextTouchNodeKey('custom_node'), 'touch_2');
   });
 
   it('listDispatchableEnrollments filters locked and paused', () => {
@@ -97,7 +98,7 @@ describe('enrollment state machine', () => {
       },
     ];
     const due = listDispatchableEnrollments(rows);
-    expect(due.map((r) => r.enrollmentId)).toEqual(['a']);
+    assert.deepStrictEqual(due.map((r) => r.enrollmentId), ['a']);
   });
 });
 
@@ -124,33 +125,33 @@ describe('fit scoring', () => {
       },
       icp,
     );
-    expect(r.total).toBeGreaterThanOrEqual(80);
-    expect(r.band).toBe('STRONG');
-    expect(scoringMayAutoApprove()).toBe(false);
+    assert.ok(r.total >= 80);
+    assert.strictEqual(r.band, 'STRONG');
+    assert.strictEqual(scoringMayAutoApprove(), false);
   });
 
   it('rejects protected attributes', () => {
-    expect(() => assertNoProtectedInputs(['ethnicity'])).toThrow(/protected/);
+    assert.throws(() => assertNoProtectedInputs(['ethnicity']), /protected/);
   });
 });
 
 describe('templates and replies', () => {
   it('renders allowed slots', () => {
-    expect(renderTemplate('Hi {{firstName}}', { firstName: 'Ada' })).toBe('Hi Ada');
+    assert.strictEqual(renderTemplate('Hi {{firstName}}', { firstName: 'Ada' }), 'Hi Ada');
   });
 
   it('rejects unknown slots', () => {
-    expect(() => renderTemplate('{{ssn}}', {})).toThrow(SequenceRenderError);
+    assert.throws(() => renderTemplate('{{ssn}}', {}), SequenceRenderError);
   });
 
   it('classifies unsubscribe', () => {
     const r = classifyReplyText('Please unsubscribe me');
-    expect(r.proposedClass).toBe('unsubscribe');
-    expect(shouldConvertReplyToLead(r.proposedClass)).toBe(false);
+    assert.strictEqual(r.proposedClass, 'unsubscribe');
+    assert.strictEqual(shouldConvertReplyToLead(r.proposedClass), false);
   });
 
   it('proposes pause on high unsub rate', () => {
     const p = proposeOptimization({ sent: 100, replied: 5, meetings: 1, unsubscribed: 3 });
-    expect(p?.action).toBe('pause_segment');
+    assert.strictEqual(p?.action, 'pause_segment');
   });
 });

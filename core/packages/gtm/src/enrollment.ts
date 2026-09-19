@@ -45,12 +45,15 @@ function snap(
   pausedAt: string | null,
   locked?: boolean,
 ): EnrollmentSnapshot {
-  return {
+  const s: any = {
     enrollmentStatus: status,
     currentNodeKey: node,
     pausedAt,
-    activeSalesCycleLocked: locked,
   };
+  if (locked !== undefined) {
+    s.activeSalesCycleLocked = locked;
+  }
+  return s as EnrollmentSnapshot;
 }
 
 /**
@@ -60,7 +63,7 @@ function snap(
 export function nextTouchNodeKey(currentNodeKey: string | null | undefined): string {
   const key = (currentNodeKey ?? 'touch_1').trim() || 'touch_1';
   const match = /^touch_(\d+)$/i.exec(key);
-  if (!match) return 'touch_2';
+  if (!match || !match[1]) return 'touch_2';
   const n = Number.parseInt(match[1], 10);
   if (!Number.isFinite(n) || n < 1) return 'touch_2';
   return `touch_${n + 1}`;
