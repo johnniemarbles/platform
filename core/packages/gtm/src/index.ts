@@ -241,3 +241,19 @@ export function proposeOptimization(input: {
   }
   return null;
 }
+
+export {
+  ENROLLMENT_STATUSES,
+  applyEnrollmentEvent,
+  mayDispatchEnrollmentStep,
+  listDispatchableEnrollments,
+  enrollmentEventFromReplyClass,
+  nextTouchNodeKey,
+} from './enrollment';
+export type {
+  EnrollmentStatus,
+  EnrollmentEvent,
+  EnrollmentSnapshot,
+  EnrollmentTransitionResult,
+  EnrollmentDispatchCandidate,
+} from './enrollment';
