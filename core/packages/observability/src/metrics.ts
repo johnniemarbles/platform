@@ -128,7 +128,7 @@ export class Registry {
   }
 }
 
-/** Shared process registry for platform-web (and tests). */
+/** Shared process registry for platform-web / brand-web (and tests). */
 declare global {
   // eslint-disable-next-line no-var
   var _expadioMetricsRegistry: Registry | undefined;
@@ -295,4 +295,45 @@ export function throttleRefusalCounter(): Counter {
 export function recordThrottleRefusal(plane: string): void {
   const p = (plane.trim().toUpperCase() || 'OTHER').slice(0, 32);
   throttleRefusalCounter().inc({ plane: p });
+}
+
+// --- WO-GTM-E: GTM domain boundaries (no tenant labels) -----------------------------
+
+export type GtmMetricOperation =
+  | 'sequence_draft'
+  | 'icp_proposal'
+  | 'dispatch_claim'
+  | 'dispatch_approve'
+  | 'dispatch_reject'
+  | 'campaign_draft'
+  | 'enrollment';
+
+export type GtmMetricOutcome = 'success' | 'validation_error' | 'conflict' | 'failure';
+
+let gtmOperations: Counter | undefined;
+
+export function gtmOperationsCounter(): Counter {
+  if (!gtmOperations) {
+    gtmOperations = getMetricsRegistry().register(
+      new Counter(
+        'expadio_gtm_operations_total',
+        'GTM product operations by operation and outcome (no tenant labels).',
+      ),
+    );
+  }
+  return gtmOperations;
+}
+
+/**
+ * Record a GTM boundary action (draft, claim, approve, etc.).
+ * Does not imply provider send — GTM remains observation / intent only.
+ */
+export function recordGtmOperation(input: {
+  readonly operation: GtmMetricOperation;
+  readonly outcome: GtmMetricOutcome;
+}): void {
+  gtmOperationsCounter().inc({
+    operation: input.operation,
+    outcome: input.outcome,
+  });
 }

@@ -22,5 +22,9 @@ export {
   recordDeliveryOutcome,
   throttleRefusalCounter,
   recordThrottleRefusal,
+  gtmOperationsCounter,
+  recordGtmOperation,
   type MetricLabels,
+  type GtmMetricOperation,
+  type GtmMetricOutcome,
 } from './metrics.ts';
