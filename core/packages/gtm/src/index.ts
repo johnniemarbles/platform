@@ -257,3 +257,15 @@ export type {
   EnrollmentTransitionResult,
   EnrollmentDispatchCandidate,
 } from './enrollment.ts';
+
+export {
+  normalizeSequenceTouches,
+  listSlotsInTemplate,
+  assertKnownSlotsOnly,
+} from './sequence-touches.ts';
+export type {
+  SequenceTouchInput,
+  NormalizedSequenceTouch,
+  NormalizeTouchesResult,
+  NormalizeTouchesError,
+} from './sequence-touches.ts';
