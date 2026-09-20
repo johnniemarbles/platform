@@ -297,7 +297,7 @@ export function recordThrottleRefusal(plane: string): void {
   throttleRefusalCounter().inc({ plane: p });
 }
 
-// --- WO-GTM-E: GTM domain boundaries (no tenant labels) -----------------------------
+// --- WO-GTM-E/F: GTM domain boundaries (no tenant labels) ---------------------------
 
 export type GtmMetricOperation =
   | 'sequence_draft'
@@ -306,7 +306,12 @@ export type GtmMetricOperation =
   | 'dispatch_approve'
   | 'dispatch_reject'
   | 'campaign_draft'
-  | 'enrollment';
+  | 'enrollment'
+  | 'enrollment_pause'
+  | 'enrollment_resume'
+  | 'enrollment_abort'
+  | 'enrollment_complete'
+  | 'enrollment_advance';
 
 export type GtmMetricOutcome = 'success' | 'validation_error' | 'conflict' | 'failure';
 
@@ -325,7 +330,7 @@ export function gtmOperationsCounter(): Counter {
 }
 
 /**
- * Record a GTM boundary action (draft, claim, approve, etc.).
+ * Record a GTM boundary action (draft, claim, enrollment command, etc.).
  * Does not imply provider send — GTM remains observation / intent only.
  */
 export function recordGtmOperation(input: {
