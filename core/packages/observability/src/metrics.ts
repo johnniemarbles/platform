@@ -1,11 +1,12 @@
 /**
- * WO-E10-A — minimal Prometheus exposition without prom-client.
+ * WO-E10 — minimal Prometheus exposition without prom-client.
  *
  * Process-local counters and histograms; suitable for single-instance scrape.
  * Multi-replica aggregation is the scraper's job (Prometheus / Grafana Cloud).
  *
- * Label cardinality: prefer low-cardinality labels (gate, verdict, plane).
- * Do **not** label on tenant_id or correlation_id.
+ * Label cardinality: prefer low-cardinality labels (gate, verdict, plane,
+ * provider_key, operation, outcome). Do **not** label on tenant_id or
+ * correlation_id.
  */
 
 export type MetricLabels = Readonly<Record<string, string>>;
@@ -140,6 +141,8 @@ export function getMetricsRegistry(): Registry {
   return globalThis._expadioMetricsRegistry;
 }
 
+// --- E10-A: gates -----------------------------------------------------------------
+
 let gateVerdicts: Counter | undefined;
 let gateLatency: Histogram | undefined;
 
@@ -176,4 +179,120 @@ export function recordGateMetric(input: {
   if (input.verdict === 'NOT_EVALUATED') return;
   gateVerdictCounter().inc({ gate: input.gate, verdict: input.verdict });
   gateLatencyHistogram().observe(input.elapsedMs / 1000, { gate: input.gate });
+}
+
+// --- E10-B: provider / spend / delivery ---------------------------------------------
+
+let providerOps: Counter | undefined;
+let providerLatency: Histogram | undefined;
+let spendBreakerTrips: Counter | undefined;
+let deliveryOutcomes: Counter | undefined;
+let throttleRefusals: Counter | undefined;
+
+function sanitizeProviderKey(providerKey: string): string {
+  const cleaned = providerKey.trim().toLowerCase().replace(/[^a-z0-9._-]/g, '_');
+  return cleaned.slice(0, 64) || 'unknown';
+}
+
+export function providerOpsCounter(): Counter {
+  if (!providerOps) {
+    providerOps = getMetricsRegistry().register(
+      new Counter(
+        'expadio_provider_operations_total',
+        'Provider API operations by provider, operation, and outcome.',
+      ),
+    );
+  }
+  return providerOps;
+}
+
+export function providerLatencyHistogram(): Histogram {
+  if (!providerLatency) {
+    providerLatency = getMetricsRegistry().register(
+      new Histogram(
+        'expadio_provider_latency_seconds',
+        'Provider API latency in seconds.',
+        [0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30],
+      ),
+    );
+  }
+  return providerLatency;
+}
+
+/**
+ * Record a provider probe or send.
+ * Labels: provider_key (sanitized), operation (PROBE|SEND|…), outcome (success|failure).
+ */
+export function recordProviderMetric(input: {
+  readonly providerKey: string;
+  readonly operation: 'PROBE' | 'SEND' | 'WRAP' | 'OTHER';
+  readonly outcome: 'success' | 'failure';
+  readonly elapsedMs: number;
+}): void {
+  const provider_key = sanitizeProviderKey(input.providerKey);
+  const labels = {
+    provider_key,
+    operation: input.operation,
+    outcome: input.outcome,
+  };
+  providerOpsCounter().inc(labels);
+  providerLatencyHistogram().observe(input.elapsedMs / 1000, {
+    provider_key,
+    operation: input.operation,
+  });
+}
+
+export function spendBreakerCounter(): Counter {
+  if (!spendBreakerTrips) {
+    spendBreakerTrips = getMetricsRegistry().register(
+      new Counter(
+        'expadio_spend_breaker_trips_total',
+        'Spend breaker open events by plane.',
+      ),
+    );
+  }
+  return spendBreakerTrips;
+}
+
+/** Plane: TRANSACTIONAL | MARKETING | SYSTEM (or OTHER). */
+export function recordSpendBreakerTrip(plane: string): void {
+  const p = plane.trim().toUpperCase() || 'OTHER';
+  spendBreakerCounter().inc({ plane: p.slice(0, 32) });
+}
+
+export function deliveryOutcomeCounter(): Counter {
+  if (!deliveryOutcomes) {
+    deliveryOutcomes = getMetricsRegistry().register(
+      new Counter(
+        'expadio_delivery_outcomes_total',
+        'Message delivery outcomes by plane and outcome.',
+      ),
+    );
+  }
+  return deliveryOutcomes;
+}
+
+export function recordDeliveryOutcome(input: {
+  readonly plane: string;
+  readonly outcome: 'sent' | 'queued' | 'refused' | 'cancelled' | 'failed';
+}): void {
+  const plane = (input.plane.trim().toUpperCase() || 'OTHER').slice(0, 32);
+  deliveryOutcomeCounter().inc({ plane, outcome: input.outcome });
+}
+
+export function throttleRefusalCounter(): Counter {
+  if (!throttleRefusals) {
+    throttleRefusals = getMetricsRegistry().register(
+      new Counter(
+        'expadio_throttle_refusals_total',
+        'Gate-13 throttle refusals by plane.',
+      ),
+    );
+  }
+  return throttleRefusals;
+}
+
+export function recordThrottleRefusal(plane: string): void {
+  const p = (plane.trim().toUpperCase() || 'OTHER').slice(0, 32);
+  throttleRefusalCounter().inc({ plane: p });
 }

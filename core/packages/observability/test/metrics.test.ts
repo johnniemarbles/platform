@@ -5,6 +5,10 @@ import {
   Histogram,
   Registry,
   recordGateMetric,
+  recordProviderMetric,
+  recordSpendBreakerTrip,
+  recordDeliveryOutcome,
+  recordThrottleRefusal,
   getMetricsRegistry,
 } from '../src/metrics.ts';
 
@@ -35,11 +39,35 @@ test('Registry includes process uptime', () => {
 });
 
 test('recordGateMetric writes verdict and latency', () => {
-  // Use process registry; may accumulate across tests — assert increase shape.
   recordGateMetric({ gate: 'QUOTA_THROTTLE', verdict: 'FAIL', elapsedMs: 12 });
   const text = getMetricsRegistry().render();
   assert.match(text, /expadio_gate_verdicts_total/);
   assert.match(text, /gate="QUOTA_THROTTLE"/);
   assert.match(text, /verdict="FAIL"/);
   assert.match(text, /expadio_gate_latency_seconds/);
+});
+
+test('WO-E10-B provider metric sanitizes key and records outcome', () => {
+  recordProviderMetric({
+    providerKey: 'Twilio SMS!',
+    operation: 'SEND',
+    outcome: 'success',
+    elapsedMs: 120,
+  });
+  const text = getMetricsRegistry().render();
+  assert.match(text, /expadio_provider_operations_total/);
+  assert.match(text, /provider_key="twilio_sms_"/);
+  assert.match(text, /operation="SEND"/);
+  assert.match(text, /outcome="success"/);
+  assert.match(text, /expadio_provider_latency_seconds/);
+});
+
+test('WO-E10-B spend breaker and delivery and throttle', () => {
+  recordSpendBreakerTrip('TRANSACTIONAL');
+  recordDeliveryOutcome({ plane: 'marketing', outcome: 'refused' });
+  recordThrottleRefusal('MARKETING');
+  const text = getMetricsRegistry().render();
+  assert.match(text, /expadio_spend_breaker_trips_total\{plane="TRANSACTIONAL"\}/);
+  assert.match(text, /expadio_delivery_outcomes_total\{outcome="refused",plane="MARKETING"\}/);
+  assert.match(text, /expadio_throttle_refusals_total\{plane="MARKETING"\}/);
 });
