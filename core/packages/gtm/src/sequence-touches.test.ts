@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
 import { normalizeSequenceTouches, listSlotsInTemplate } from './sequence-touches.ts';
 
 describe('normalizeSequenceTouches', () => {
   it('requires at least one touch', () => {
     const r = normalizeSequenceTouches([]);
-    expect(r.ok).toBe(false);
+    assert.equal(r.ok, false);
   });
 
   it('assigns touch_N keys and default delay', () => {
@@ -12,29 +13,29 @@ describe('normalizeSequenceTouches', () => {
       { subject: 'Hi {{firstName}}', body: 'About {{company}}' },
       { subject: 'Follow up', body: 'Still interested?', delayDays: 5 },
     ]);
-    expect(r.ok).toBe(true);
+    assert.equal(r.ok, true);
     if (!r.ok) return;
-    expect(r.touches).toHaveLength(2);
-    expect(r.touches[0]!.stepKey).toBe('touch_1');
-    expect(r.touches[0]!.delayDays).toBe(0);
-    expect(r.touches[1]!.stepKey).toBe('touch_2');
-    expect(r.touches[1]!.delayDays).toBe(5);
+    assert.equal(r.touches.length, 2);
+    assert.equal(r.touches[0]!.stepKey, 'touch_1');
+    assert.equal(r.touches[0]!.delayDays, 0);
+    assert.equal(r.touches[1]!.stepKey, 'touch_2');
+    assert.equal(r.touches[1]!.delayDays, 5);
   });
 
   it('rejects unknown slots', () => {
     const r = normalizeSequenceTouches([
       { subject: 'Hi {{ssn}}', body: 'x' },
     ]);
-    expect(r.ok).toBe(false);
+    assert.equal(r.ok, false);
     if (r.ok) return;
-    expect(r.error).toMatch(/unknown slot/);
+    assert.match(r.error, /unknown slot/);
   });
 });
 
 describe('listSlotsInTemplate', () => {
   it('finds slots', () => {
-    expect(listSlotsInTemplate('Hi {{firstName}} at {{company}}')).toEqual(
-      expect.arrayContaining(['firstName', 'company']),
-    );
+    const slots = listSlotsInTemplate('Hi {{firstName}} at {{company}}');
+    assert.ok(slots.includes('firstName'));
+    assert.ok(slots.includes('company'));
   });
 });
