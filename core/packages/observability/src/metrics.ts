@@ -302,7 +302,7 @@ export function recordThrottleRefusal(plane: string): void {
   throttleRefusalCounter().inc({ plane: p });
 }
 
-// --- WO-GTM-E/F/G/I: GTM domain boundaries (no tenant labels) -----------------------
+// --- WO-GTM-E/F/G/I + UX: GTM domain boundaries (no tenant labels) ------------------
 
 export type GtmMetricOperation =
   | 'sequence_draft'
@@ -319,7 +319,8 @@ export type GtmMetricOperation =
   | 'enrollment_advance'
   | 'reply_convert_lead'
   | 'optimize_propose'
-  | 'optimize_review';
+  | 'optimize_review'
+  | 'starter_pack_apply';
 
 export type GtmMetricOutcome = 'success' | 'validation_error' | 'conflict' | 'failure';
 
