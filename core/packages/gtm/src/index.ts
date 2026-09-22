@@ -269,3 +269,10 @@ export type {
   NormalizeTouchesResult,
   NormalizeTouchesError,
 } from './sequence-touches.ts';
+
+export {
+  GTM_STARTER_PACKS,
+  listGtmStarterPacks,
+  getGtmStarterPack,
+} from './starter-packs.ts';
+export type { GtmStarterPackDefinition } from './starter-packs.ts';
