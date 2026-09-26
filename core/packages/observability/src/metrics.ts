@@ -318,6 +318,7 @@ export type GtmMetricOperation =
   | 'enrollment_complete'
   | 'enrollment_advance'
   | 'reply_convert_lead'
+  | 'prospect_convert_lead'
   | 'optimize_propose'
   | 'optimize_review'
   | 'starter_pack_apply';
