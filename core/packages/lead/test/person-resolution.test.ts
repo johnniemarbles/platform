@@ -13,8 +13,9 @@ test('normalizes email and E.164 phone; drops junk', () => {
     socialUserId: ' ',
   });
   assert.equal(keys.email, 'alex@example.com');
-  assert.equal(keys.phone, null);
+  assert.equal(keys.phone, '+16476190871');
   assert.equal(keys.socialUserId, null);
+  assert.equal(normalizePersonMatchKeys({ phone: 'not-a-valid-phone' }).phone, null);
   assert.equal(normalizePersonMatchKeys({ phone: '+16476190871' }).phone, '+16476190871');
 });
 
