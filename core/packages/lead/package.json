@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./person-resolution": "./src/person-resolution.ts"
+    "./person-resolution": "./src/person-resolution.ts",
+    "./social-thread-link": "./src/social-thread-link.ts"
   },
   "scripts": {
     "test": "node --experimental-strip-types --test test/*.test.ts"
