@@ -10,5 +10,5 @@ test('links a Unibox thread to a CRM lead without creating a second record', () 
   });
   assert.equal(meta.socialThreadId, 'th_123');
   assert.equal(meta.crmLeadId, '11111111-1111-1111-1111-111111111111');
-  assert.equal(meta.leadHref, '/leads?leadId=11111111-1111-1111-1111-111111111111');
+  assert.equal(meta.leadHref, '/leads/11111111-1111-1111-1111-111111111111');
 });

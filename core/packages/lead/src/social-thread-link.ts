@@ -14,8 +14,9 @@ export function socialThreadLeadMetadata(input: {
     ...(input.provider ? { socialProvider: input.provider } : {}),
   };
   if (input.crmLeadId && input.crmLeadId.trim() !== '') {
-    metadata.crmLeadId = input.crmLeadId.trim();
-    metadata.leadHref = `/leads?leadId=${encodeURIComponent(input.crmLeadId.trim())}`;
+    const leadId = input.crmLeadId.trim();
+    metadata.crmLeadId = leadId;
+    metadata.leadHref = `/leads/${encodeURIComponent(leadId)}`;
   }
   return metadata;
 }
