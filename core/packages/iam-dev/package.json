@@ -1,0 +1,17 @@
+{
+  "name": "@platform-core/iam-dev",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --no-warnings --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@platform-core/iam": "workspace:*",
+    "@platform-core/tenancy": "workspace:*"
+  }
+}
