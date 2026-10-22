@@ -6,7 +6,7 @@ Date: 2026-10-22 (updated after Sanjeev's answers) · Source: *Platform Architec
 
 - **No repo holds real customer data today.** Expadio, BEMP, TRUXORATMS, dentex, PII, tress-lounge-platform and the Railway projects are all pre-launch. Residency rules apply from the first real-customer tenant, not retroactively.
 - **The apps on the shared platform are `dentex`, `tress-lounge` (new build), and `realtors` (new).** BEMP and TRUXORATMS stay out of the migration list; TRUXORATMS keeps running on its own.
-- **PII becomes `insurance`.** `johnniemarbles/insurance` has been mirrored from `johnniemarbles/pii` (866 commits on `main`, 137 branches, HEAD `3d94ddd`). From this point on, all work is on `insurance`. **PII is read-only reference** and must not be touched again once it starts holding real data.
+- **`insurance` is our internal build and testbed; `PII` is isolated.** `johnniemarbles/insurance` was mirrored from `johnniemarbles/pii` (866 commits on `main`, 137 branches, HEAD `3d94ddd`) and is the one we build on. `PII` is where real user data will land; from this point on **no agent, script, extraction, filter-repo pass or deployment touches `PII`**. The local clone is deleted and `PII` is not attached to any session.
 - **Decrypt scripts in `expadio`:** re-examined. They do not contain exposed key material; the "long literals" are regex patterns, not stored secrets. No key rotation is required from these files. They are still excluded from the extraction via `git filter-repo` in Gate 1. The only real secret still exposed is the Clerk `sk_test_…` key hard-coded in `apps/*/proxy.ts`; that one is rotated at Gate 1 as part of the identity-adapter move.
 - **Razorpay** will be connected in claude.ai before Gate 4.
 - **Legal sign-off per country** is deferred; no counsel assigned yet.
@@ -30,7 +30,7 @@ Date: 2026-10-22 (updated after Sanjeev's answers) · Source: *Platform Architec
 | `johnniemarbles/BEMP` | d18e9e6 2026-08-24 | Nest-style, direct Clerk + Twilio + Resend + SES in app code | not run | **Out of scope.** Stays off the shared platform |
 | `johnniemarbles/truxoratms` | a657917 2026-10-12 | Next.js 16, Prisma 7, 163 migrations, Stripe/Twilio/OpenAI/GenAI/Resend/S3 all in-app | not run | **Out of scope.** Keeps running on its own |
 | `johnniemarbles/dentex` | 48141b5 2025-11-28 | Vite SPA on Supabase + `@google/genai` | not run (SPA) | **Dentex spoke app on the platform.** Rebuild from `spoke-template`, keep what works, replace Supabase client with hub/platform SDK calls |
-| `johnniemarbles/insurance` (mirror of PII) | 3d94ddd 2026-10-22 | Node app, 161 migrations, KMS + S3 | not run | **Insurance spoke app on the platform.** `PII` is read-only reference from here on |
+| `johnniemarbles/insurance` (mirror of PII) | 3d94ddd 2026-10-22 | Node app, 161 migrations, KMS + S3 | not run | **Insurance spoke app on the platform; internal use only, no customer data.** `PII` is isolated and off-limits to this and every later session |
 | `johnniemarbles/tress-lounge-platform` | fd12470 2026-08-24 | pnpm + turbo monorepo, 11 migrations | not run (stale) | Reference. **Tress-Lounge spoke app** is a new build from `spoke-template` |
 | `platform-hub` / `platform-core` / `spoke-template` | this session | pnpm + turbo frames; architecture guard enforced in CI | 9 / 9 guard unit tests pass; `pnpm run check` exits 0 | **New** |
 
