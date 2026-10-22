@@ -1,6 +1,15 @@
 # Gate 0 Audit
 
-Date: 2026-10-22 · Source: *Platform Architecture Plan: Hub, Platform and Apps (V3.1)* · Scope: evidence-backed inventory across code, infrastructure and providers. **Read-only throughout.**
+Date: 2026-10-22 (updated after Sanjeev's answers) · Source: *Platform Architecture Plan: Hub, Platform and Apps (V3.1)* · Scope: evidence-backed inventory across code, infrastructure and providers. **Read-only throughout.**
+
+## Scope decisions (Gate 0 exit)
+
+- **No repo holds real customer data today.** Expadio, BEMP, TRUXORATMS, dentex, PII, tress-lounge-platform and the Railway projects are all pre-launch. Residency rules apply from the first real-customer tenant, not retroactively.
+- **The apps on the shared platform are `dentex`, `tress-lounge` (new build), and `realtors` (new).** BEMP and TRUXORATMS stay out of the migration list; TRUXORATMS keeps running on its own.
+- **PII becomes `insurance`.** `johnniemarbles/insurance` has been mirrored from `johnniemarbles/pii` (866 commits on `main`, 137 branches, HEAD `3d94ddd`). From this point on, all work is on `insurance`. **PII is read-only reference** and must not be touched again once it starts holding real data.
+- **Decrypt scripts in `expadio`:** re-examined. They do not contain exposed key material; the "long literals" are regex patterns, not stored secrets. No key rotation is required from these files. They are still excluded from the extraction via `git filter-repo` in Gate 1. The only real secret still exposed is the Clerk `sk_test_…` key hard-coded in `apps/*/proxy.ts`; that one is rotated at Gate 1 as part of the identity-adapter move.
+- **Razorpay** will be connected in claude.ai before Gate 4.
+- **Legal sign-off per country** is deferred; no counsel assigned yet.
 
 ## Summary
 
@@ -18,11 +27,11 @@ Date: 2026-10-22 · Source: *Platform Architecture Plan: Hub, Platform and Apps 
 | Repo | Last commit | Shape | Test suite result | Role |
 | --- | --- | --- | --- | --- |
 | `johnniemarbles/expadio` | b2c2811 2026-10-14 | pnpm workspaces, 43 packages / 3 apps / 3 services / 1 module | root `pnpm test`: **1,935 / 1,935 pass**; typecheck 0 errors | **The source** of the extraction |
-| `johnniemarbles/BEMP` | d18e9e6 2026-08-24 | Nest-style, direct Clerk + Twilio + Resend + SES in app code | not run (older build, out of scope for Gate 0) | Candidate app; biggest provider-SDK sprawl |
-| `johnniemarbles/truxoratms` | a657917 2026-10-12 | Next.js 16, Prisma 7, 163 migrations, Stripe/Twilio/OpenAI/GenAI/Resend/S3 all in-app | not run | **Already in production**; migrate as its own spoke-template app, not into the hub |
-| `johnniemarbles/dentex` | 48141b5 2025-11-28 | Vite SPA on Supabase + `@google/genai` | not run (SPA) | Prototype; retire or rebuild as a spoke |
-| `johnniemarbles/PII` | 3d94ddd 2026-10-22 | Node app, 161 migrations, KMS + S3 | not run | Active; needs its own residency review |
-| `johnniemarbles/tress-lounge-platform` | fd12470 2026-08-24 | pnpm + turbo monorepo, 11 migrations | not run (stale) | Earlier shape of the Tress-Lounge app |
+| `johnniemarbles/BEMP` | d18e9e6 2026-08-24 | Nest-style, direct Clerk + Twilio + Resend + SES in app code | not run | **Out of scope.** Stays off the shared platform |
+| `johnniemarbles/truxoratms` | a657917 2026-10-12 | Next.js 16, Prisma 7, 163 migrations, Stripe/Twilio/OpenAI/GenAI/Resend/S3 all in-app | not run | **Out of scope.** Keeps running on its own |
+| `johnniemarbles/dentex` | 48141b5 2025-11-28 | Vite SPA on Supabase + `@google/genai` | not run (SPA) | **Dentex spoke app on the platform.** Rebuild from `spoke-template`, keep what works, replace Supabase client with hub/platform SDK calls |
+| `johnniemarbles/insurance` (mirror of PII) | 3d94ddd 2026-10-22 | Node app, 161 migrations, KMS + S3 | not run | **Insurance spoke app on the platform.** `PII` is read-only reference from here on |
+| `johnniemarbles/tress-lounge-platform` | fd12470 2026-08-24 | pnpm + turbo monorepo, 11 migrations | not run (stale) | Reference. **Tress-Lounge spoke app** is a new build from `spoke-template` |
 | `platform-hub` / `platform-core` / `spoke-template` | this session | pnpm + turbo frames; architecture guard enforced in CI | 9 / 9 guard unit tests pass; `pnpm run check` exits 0 | **New** |
 
 ### expadio application-level tests
@@ -152,9 +161,8 @@ All messaging, payments, AI and storage already go through packages. No `stripe`
 
 | # | Severity | Finding | Fix (direction, not deployment) |
 | --- | --- | --- | --- |
-| 1 | **High** | Secrets in `expadio` repo history: 7 tracked scripts in root (5 with long encoded literals); 3 Clerk `sk_test_…` hard-coded in `apps/*/proxy.ts`; `.env.custody.example` and `.env.example` tracked | Rotate the custody wrapping key and the Clerk instance key; purge the files from history on the extraction copy with `git filter-repo` **before** pushing to new repos. Cleaning expadio's own history is separate |
-| 2 | **High (residency)** | `pii-ca` runs in California | Confirm whether it holds real personal data. If yes, add it to the migration list with a target date. If no, relabel as test data |
-| 3 | **High (residency)** | All Railway services in `sfo`; buckets in `iad`. Any Indian or Canadian tenant personal data in `expadio` is therefore US-resident | Keep Railway for dev/staging only. Open production regional cells in India and Canada per plan before onboarding real customers in those countries |
+| 1 | **Medium (was High, downgraded on re-check)** | Clerk `sk_test_…` key hard-coded in `apps/brand-web/proxy.ts:9`, `apps/platform-web/proxy.ts:65,86`, and `apps/platform-web/.env.example:2`. The 7 "decrypt" scripts in the expadio root were re-examined and contain no key material — the long literals are regex patterns. | Rotate the Clerk test-instance key at Gate 1 as part of the identity-adapter move. Strip the decrypt scripts from the extraction copy with `git filter-repo` before pushing to the new repos |
+| 2 | **Low (was High)** | All Railway services in `sfo`; `pii-ca` named for Canada runs in California | **No real customer data today**, so no live breach. Keep Railway for dev/staging only (test data). Open production regional cells per plan before any real-customer tenant signs in India or Canada |
 | 4 | **Medium** | 4 overlapping `comms-drain` crons in `expadio` production, one stuck `INITIALIZING` since 20 Oct | Pin to the single `comms-drain-worker`; delete the three cron variants after shadow mode is live |
 | 5 | **Medium** | `forms-proxy` deployed from an unmerged `claude/cloudflare-brand-domain-autoconfigure` branch | Merge or revert; CI must only deploy production from `main` |
 | 6 | **Medium** | `trux-platform` production Redis has no volume | Attach a volume; or move Redis to a managed instance |
@@ -163,14 +171,13 @@ All messaging, payments, AI and storage already go through packages. No `stripe`
 | 9 | **Low** | 58 duplicated migration numbers in `expadio` | Prefix the next series with a date and renumber on the extraction copy |
 | 10 | **Low** | Supabase projects created but all `INACTIVE` | Decide whether to keep them (dev state), or delete after confirming no live data |
 
-## Open questions (for @Sanjeev)
+## Open items left
 
-1. **Which Railway projects hold real customer data today?** They count as production and go on the migration list. Specifically: `expadio` (real tenants?), `pii-ca`, `pii-us`, `trux-platform` (TRUX customers?), `overflowing-hope` (Tress-Lounge live or demo?).
-2. **BEMP, TRUXORATMS, dentex, PII, tress-lounge-platform** — which of these become apps on the shared platform, and in what order? The plan's "which app moves onto the stack first" is still an open decision.
-3. **May I purge the identified decrypt scripts and Clerk test keys from the extraction copy's history** (not from expadio itself)? That is the only change to expadio-adjacent artefacts that Gate 1 needs.
-4. **Razorpay:** can we connect it in claude.ai before Gate 4 so India payments can be built against a real sandbox?
-5. **Legal sign-off per country:** the plan calls for counsel per regulated workload per country. Which workloads do you want on the first list?
+- **Legal sign-off per country** (plan calls for counsel per regulated workload per country): no counsel assigned yet. Carried into Gate 5 as an open decision.
+- **Order of app migration.** Dentex, Tress-Lounge, Realtors and Insurance are all on the list. The plan asks us to pick one app to go first so Gate 4 (first-app migration + payments) has a concrete target. Default: **Dentex first**, because its Supabase shape makes the Clerk-to-adapter and client-to-SDK swap cheapest. Second: **Insurance** (largest existing codebase and the one that gets real customer data soonest). Change the default if you want.
 
 ## Gate 0 exit
 
-Gate 0 passes when the audit, the move list and the risks above are agreed; no code is extracted inside Gate 0. The next step is **Gate 1 — Foundation & Security**, laid out in `AI-WORK-ORDER.md`.
+Gate 0 **passes**: the audit is written, the move list is corrected, the risks are agreed, and the five open questions are answered. No code was extracted in Gate 0.
+
+Next: **Gate 1 — Foundation & Security**, laid out in `AI-WORK-ORDER.md`.
