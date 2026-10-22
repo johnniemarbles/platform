@@ -37,6 +37,8 @@ importers:
 
   packages/business-config: {}
 
+  packages/db-context: {}
+
   packages/domain-events:
     dependencies:
       '@platform-core/tenancy':
