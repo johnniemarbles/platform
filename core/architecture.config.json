@@ -1,0 +1,92 @@
+{
+  "$comment": "Layer rules from Platform Architecture Plan V3.1. Changes need platform-team review (CODEOWNERS).",
+  "sdkGroups": [
+    {
+      "name": "provider",
+      "packages": [
+        "stripe",
+        "razorpay",
+        "twilio",
+        "@twilio/",
+        "@vonage/",
+        "@sendgrid/",
+        "resend",
+        "postmark",
+        "mailgun.js",
+        "mailgun-js",
+        "nodemailer",
+        "@aws-sdk/client-ses*",
+        "@aws-sdk/client-sns",
+        "@aws-sdk/client-pinpoint*",
+        "firebase-admin",
+        "web-push",
+        "@parse/node-apn",
+        "apn",
+        "@anthropic-ai/",
+        "openai",
+        "@google/genai",
+        "@google/generative-ai",
+        "@google-cloud/vertexai",
+        "@aws-sdk/client-bedrock*",
+        "@aws-sdk/client-s3",
+        "@aws-sdk/s3-request-presigner",
+        "@aws-sdk/lib-storage",
+        "googleapis",
+        "@googleapis/",
+        "@microsoft/microsoft-graph-client",
+        "@googlemaps/",
+        "cloudflare",
+        "@aws-sdk/client-route-53*",
+        "@aws-sdk/client-secrets-manager",
+        "@aws-sdk/client-kms",
+        "node-vault"
+      ],
+      "allowedPaths": []
+    },
+    {
+      "name": "identity",
+      "packages": [
+        "@clerk/",
+        "@aws-sdk/client-cognito-identity-provider",
+        "amazon-cognito-identity-js",
+        "aws-jwt-verify"
+      ],
+      "allowedPaths": [
+        "packages/foundation/src/identity"
+      ]
+    }
+  ],
+  "baseAllowedDeps": {
+    "@platform-core/contracts": [],
+    "@platform-core/foundation": [
+      "@platform-core/contracts"
+    ],
+    "@platform-core/core-records": [
+      "@platform-core/foundation",
+      "@platform-core/contracts"
+    ],
+    "@platform-core/ui": [
+      "@platform-core/contracts",
+      "@platform-core/foundation",
+      "@platform-core/core-records"
+    ],
+    "@platform-core/sdk": [
+      "@platform-core/contracts"
+    ]
+  },
+  "moduleAllowedDeps": [
+    "@platform-core/contracts",
+    "@platform-core/foundation",
+    "@platform-core/core-records"
+  ],
+  "forbiddenPackages": [
+    "@platform-hub/",
+    "@spoke/"
+  ],
+  "allowedExternalLayerPackages": [
+    "@platform-hub/sdk",
+    "@platform-hub/contracts"
+  ],
+  "permissionChecks": true,
+  "turboRequired": true
+}

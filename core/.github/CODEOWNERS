@@ -1,0 +1,7 @@
+# Platform team owns the foundation and modules (Plan V3.1, operating decision 3).
+*                               @johnniemarbles
+/packages/foundation/           @johnniemarbles
+/packages/core-records/         @johnniemarbles
+/packages/contracts/            @johnniemarbles
+/architecture.config.json       @johnniemarbles
+/scripts/architecture/          @johnniemarbles
