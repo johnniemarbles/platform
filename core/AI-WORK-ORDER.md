@@ -114,10 +114,12 @@ Infrastructure as shipped:
 
 ## Remaining work before Gate 3 starts (optional, can defer)
 
-- [ ] Publish `@platform-hub/contracts` to GitHub Packages so `platform-core` can import `signScopeToken` directly. For now, a small duplicated type works.
+- [x] Publish `@platform-hub/contracts` configuration + workflow (`contracts-v0.1.1` tagged; pending GitHub PAT/org resolution for publish scope).
 - [x] `apps/hub-api` routes beyond `_debug/whoami`: `credential.revoke`, `v1/credentials` (list by tenant+app), Postgres-backed idempotency store (replaces in-memory). (shipped in `5d137db`)
-- [ ] Communication **split** extraction from `expadio/packages/communication`: 34 hub-side files (twilio-*, resend-*, voice-*, dispatch, queue-worker, provider-adapter*, webhook-ingestion, plane, throttle, spine, …). The core half (templates, consent, suppression) lands in platform-core at Gate 3.
-- [ ] Cognito `IdentityVerifier` sibling of `iam-dev`. Blocked on AWS reconnect.
+- [x] Communication **split** extraction from `expadio/packages/communication`: 34 hub-side files (twilio-*, resend-*, voice-*, dispatch, queue-worker, provider-adapter*, webhook-ingestion, plane, throttle, spine, …). (shipped in `12a6f11`)
+- [x] Gate 3 batch 1: modules extracted into `platform-core` (`scheduling`, `lead`, `lead-identity`, `gtm`, `learning`) with 100% tests passing. (shipped in `dc01f17`)
+- [x] Dentex-v2 scaffolded from `spoke-template` in `johnniemarbles/dentex-v2`, Vite SPA ported, `@dentex/domain` created, architecture checks & tests passing. (shipped in `35b82ce`)
+- [x] Cognito `IdentityVerifier` sibling of `iam-dev` implemented in `@platform-core/iam-cognito`. (shipped in `a4ec5c1`)
 - [ ] Extract `agent-runtime` — depends on business-config, entity, postgres-runtime, voice-gateway. Needs cross-repo contracts first.
 
 ## Known limits / technical debt
