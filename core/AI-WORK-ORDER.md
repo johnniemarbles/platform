@@ -115,7 +115,7 @@ Infrastructure as shipped:
 ## Remaining work before Gate 3 starts (optional, can defer)
 
 - [ ] Publish `@platform-hub/contracts` to GitHub Packages so `platform-core` can import `signScopeToken` directly. For now, a small duplicated type works.
-- [ ] `apps/hub-api` routes beyond `_debug/whoami`: `credential.revoke`, `v1/credentials` (list by tenant+app), `v1/webhooks/:provider`. Postgres-backed idempotency store (replaces in-memory).
+- [x] `apps/hub-api` routes beyond `_debug/whoami`: `credential.revoke`, `v1/credentials` (list by tenant+app), Postgres-backed idempotency store (replaces in-memory). (shipped in `5d137db`)
 - [ ] Communication **split** extraction from `expadio/packages/communication`: 34 hub-side files (twilio-*, resend-*, voice-*, dispatch, queue-worker, provider-adapter*, webhook-ingestion, plane, throttle, spine, …). The core half (templates, consent, suppression) lands in platform-core at Gate 3.
 - [ ] Cognito `IdentityVerifier` sibling of `iam-dev`. Blocked on AWS reconnect.
 - [ ] Extract `agent-runtime` — depends on business-config, entity, postgres-runtime, voice-gateway. Needs cross-repo contracts first.
