@@ -1,0 +1,13 @@
+{
+  "name": "@platform-core/gtm",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./enrollment": "./src/enrollment.ts"
+  },
+  "scripts": {
+    "test": "vitest run --dir src"
+  }
+}
