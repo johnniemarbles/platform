@@ -52,11 +52,20 @@
         "aws-jwt-verify"
       ],
       "allowedPaths": [
-        "packages/foundation/src/identity"
+        "packages/foundation/src/identity",
+        "packages/iam-dev",
+        "packages/iam-cognito"
       ]
     }
   ],
   "baseAllowedDeps": {
+    "@platform-core/iam-cognito": [
+      "@platform-core/contracts",
+      "@platform-core/foundation",
+      "@platform-core/core-records",
+      "@platform-core/iam",
+      "@platform-core/tenancy"
+    ],
     "@platform-core/audit": [
       "@platform-core/contracts",
       "@platform-core/foundation",
