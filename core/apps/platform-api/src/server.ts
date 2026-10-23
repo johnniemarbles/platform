@@ -23,7 +23,7 @@ const config: PlatformApiConfig = {
   identity: identityFromEnv(),
   resolveTenantFromHost: makeHostResolver(db),
 };
-const handler = makeDispatcher(routesFor(appId), config);
+const handler = makeDispatcher(routesFor(appId, { signerConfig: scopeTokenSigner, hubBaseUrl }), config);
 
 const port = Number(process.env['PORT'] ?? '3031');
 if (!Number.isFinite(port) || port <= 0) throw new Error(`invalid port: ${port}`);

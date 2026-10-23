@@ -80,6 +80,25 @@ async function setupTestDb() {
       expires_at timestamptz,
       revoked_at timestamptz
     );
+
+    CREATE TABLE IF NOT EXISTS platform.bookings (
+      booking_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      tenant_id uuid NOT NULL REFERENCES platform.tenants(tenant_id) ON DELETE CASCADE,
+      app_id text NOT NULL,
+      patient_name text NOT NULL,
+      patient_email text NOT NULL,
+      patient_phone text,
+      service_key text NOT NULL DEFAULT 'general-checkup',
+      chair_id text NOT NULL DEFAULT 'chair-1',
+      starts_at timestamptz NOT NULL,
+      ends_at timestamptz NOT NULL,
+      status text NOT NULL DEFAULT 'CONFIRMED',
+      chief_complaint text,
+      created_by uuid NOT NULL,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    );
+
   `);
   return pg;
 }
@@ -247,3 +266,186 @@ test('pipeline: identity token with bad signature -> 401 TOKEN_SIGNATURE_INVALID
   assert.equal(res.body.code, 'TOKEN_SIGNATURE_INVALID');
   await db.close();
 });
+
+test('pipeline: /v1/bookings without bookings.create permission -> TOKEN_SCOPE_MISMATCH', async () => {
+  const pg = await setupTestDb();
+  const db = dbFromPglite(pg);
+  const verifier = new DevIdentityVerifier({ secret: DEV_SECRET, productionGuard: 'allow' });
+  const config: PlatformApiConfig = {
+    db,
+    identity: verifier,
+    resolveTenantFromHost: makeHostResolver(db),
+  };
+  const dispatcher = makeDispatcher(routesFor('app_dentex'), config);
+
+  const tenantRes = await pg.query<{ tenant_id: string }>(`
+    INSERT INTO platform.tenants (account_id, country, region, workspace_name)
+    VALUES (gen_random_uuid(), 'US', 'us-east-1', 'acme')
+    RETURNING tenant_id;
+  `);
+  const tenantId = tenantRes.rows[0]!.tenant_id;
+  const personId = '33333333-3333-3333-3333-333333333333';
+
+  const memRes = await pg.query<{ membership_id: string }>(`
+    INSERT INTO platform.memberships (tenant_id, person_id, identity_provider, identity_pool_id, identity_subject_id)
+    VALUES ($1, $2, 'dev', 'platform-dev', 'usr_42')
+    RETURNING membership_id;
+  `, [tenantId, personId]);
+  const membershipId = memRes.rows[0]!.membership_id;
+
+  // Granted only 'me.read', missing 'bookings.create'
+  await pg.query(`
+    INSERT INTO platform.role_assignments (membership_id, app_id, role_key, permissions, hierarchy_scope, granted_by)
+    VALUES ($1, 'app_dentex', 'reader', ARRAY['me.read']::text[], 'org/1', $2);
+  `, [membershipId, personId]);
+
+  const token = signDevToken({ sub: 'usr_42', iss: 'platform-dev' }, DEV_SECRET);
+  const req = {
+    method: 'POST',
+    url: '/v1/bookings',
+    headers: {
+      authorization: `Bearer ${token}`,
+      host: 'acme.platform.test',
+      'content-type': 'application/json',
+    },
+    [Symbol.asyncIterator]: async function* () {
+      yield Buffer.from(JSON.stringify({
+        patientName: 'Jane Doe',
+        patientEmail: 'jane@example.com',
+        startsAt: new Date(Date.now() + 3600000).toISOString(),
+        endsAt: new Date(Date.now() + 7200000).toISOString(),
+      }));
+    },
+  } as unknown as IncomingMessage;
+
+  const res = await new Promise<{ status: number; body: any }>((resolve) => {
+    const mockRes = {
+      statusCode: 200,
+      setHeader() {},
+      end(chunk: string) { resolve({ status: mockRes.statusCode, body: JSON.parse(chunk) }); },
+    } as unknown as ServerResponse;
+    dispatcher(req, mockRes);
+  });
+
+  assert.equal(res.status, 403);
+  assert.equal(res.body.code, 'TOKEN_SCOPE_MISMATCH');
+  await db.close();
+});
+
+test('pipeline: /v1/bookings creates booking and dispatches confirmation', async () => {
+  const pg = await setupTestDb();
+  const db = dbFromPglite(pg);
+  const verifier = new DevIdentityVerifier({ secret: DEV_SECRET, productionGuard: 'allow' });
+  const config: PlatformApiConfig = {
+    db,
+    identity: verifier,
+    resolveTenantFromHost: makeHostResolver(db),
+  };
+
+  let emailDispatched = false;
+  const dispatcher = makeDispatcher(routesFor('app_dentex', {
+    signerConfig: { algorithm: 'HS256', hs256Secret: DEV_SECRET },
+    dispatchEmail: async (options) => {
+      emailDispatched = true;
+      assert.equal(options.to, 'patient@example.com');
+      assert.equal(options.templateKey, 'sched.appointment.confirmed');
+      return { ok: true };
+    },
+  }), config);
+
+  const tenantRes = await pg.query<{ tenant_id: string }>(`
+    INSERT INTO platform.tenants (account_id, country, region, workspace_name)
+    VALUES (gen_random_uuid(), 'US', 'us-east-1', 'acme')
+    RETURNING tenant_id;
+  `);
+  const tenantId = tenantRes.rows[0]!.tenant_id;
+  const personId = '44444444-4444-4444-4444-444444444444';
+
+  const memRes = await pg.query<{ membership_id: string }>(`
+    INSERT INTO platform.memberships (tenant_id, person_id, identity_provider, identity_pool_id, identity_subject_id)
+    VALUES ($1, $2, 'dev', 'platform-dev', 'usr_dentist')
+    RETURNING membership_id;
+  `, [tenantId, personId]);
+  const membershipId = memRes.rows[0]!.membership_id;
+
+  await pg.query(`
+    INSERT INTO platform.role_assignments (membership_id, app_id, role_key, permissions, hierarchy_scope, granted_by)
+    VALUES ($1, 'app_dentex', 'dentist', ARRAY['me.read', 'bookings.create', 'bookings.read']::text[], 'org/1', $2);
+  `, [membershipId, personId]);
+
+  const token = signDevToken({ sub: 'usr_dentist', iss: 'platform-dev' }, DEV_SECRET);
+  const now = Date.now();
+  const startsAt = new Date(now + 86400000).toISOString();
+  const endsAt = new Date(now + 90000000).toISOString();
+
+  // 1. Create Booking
+  const createReq = {
+    method: 'POST',
+    url: '/v1/bookings',
+    headers: {
+      authorization: `Bearer ${token}`,
+      host: 'acme.platform.test',
+      'content-type': 'application/json',
+    },
+    [Symbol.asyncIterator]: async function* () {
+      yield Buffer.from(JSON.stringify({
+        patientName: 'John Patient',
+        patientEmail: 'patient@example.com',
+        patientPhone: '+15551234567',
+        serviceKey: 'root-canal',
+        chairId: 'chair-2',
+        startsAt,
+        endsAt,
+        chiefComplaint: 'Tooth pain lower left',
+      }));
+    },
+  } as unknown as IncomingMessage;
+
+  const createRes = await new Promise<{ status: number; body: any }>((resolve) => {
+    const mockRes = {
+      statusCode: 200,
+      setHeader() {},
+      end(chunk: string) { resolve({ status: mockRes.statusCode, body: JSON.parse(chunk) }); },
+    } as unknown as ServerResponse;
+    dispatcher(createReq, mockRes);
+  });
+
+  assert.equal(createRes.status, 200);
+  assert.equal(createRes.body.ok, true);
+  assert.equal(createRes.body.result.patientName, 'John Patient');
+  assert.equal(createRes.body.result.patientEmail, 'patient@example.com');
+  assert.equal(createRes.body.result.serviceKey, 'root-canal');
+  assert.equal(createRes.body.result.chairId, 'chair-2');
+  assert.equal(createRes.body.result.status, 'CONFIRMED');
+  assert.ok(createRes.body.result.bookingId);
+  assert.equal(emailDispatched, true);
+
+  // 2. Query Bookings
+  const getReq = {
+    method: 'GET',
+    url: '/v1/bookings',
+    headers: {
+      authorization: `Bearer ${token}`,
+      host: 'acme.platform.test',
+    },
+  } as unknown as IncomingMessage;
+
+  const getRes = await new Promise<{ status: number; body: any }>((resolve) => {
+    const mockRes = {
+      statusCode: 200,
+      setHeader() {},
+      end(chunk: string) { resolve({ status: mockRes.statusCode, body: JSON.parse(chunk) }); },
+    } as unknown as ServerResponse;
+    dispatcher(getReq, mockRes);
+  });
+
+  assert.equal(getRes.status, 200);
+  assert.equal(getRes.body.ok, true);
+  assert.equal(Array.isArray(getRes.body.result), true);
+  assert.equal(getRes.body.result.length, 1);
+  assert.equal(getRes.body.result[0].patientName, 'John Patient');
+  assert.equal(getRes.body.result[0].serviceKey, 'root-canal');
+
+  await db.close();
+});
+
