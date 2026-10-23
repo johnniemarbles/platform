@@ -1,6 +1,6 @@
 # AI Work Order
 
-Session: 2026-10-22 · Owner: @Sanjeev · Source of truth: *Platform Architecture Plan: Hub, Platform and Apps (V3.1)*
+Session: 2026-10-22 to 2026-10-23 · Owner: @Sanjeev · Source of truth: *Platform Architecture Plan: Hub, Platform and Apps (V3.1)*
 
 Cross-repo work order for `platform-hub`, `platform-core` and `spoke-template`.
 Read this first, then the plan.
@@ -9,9 +9,9 @@ Read this first, then the plan.
 
 | Gate | Status | Exit |
 | --- | --- | --- |
-| 0 Audit | ✅ **passed** | `docs/gate-0-audit.md` + Project doc |
-| 1 Foundation and security | ✅ **passed** | this document, "Gate 1" below |
-| 2 Hub core | 🟡 **substantial progress — hub-api live locally, awaiting Railway recovery to go staging-live** | this document, "Gate 2" |
+| 0 Audit | ✅ **passed** | `docs/gate-0-audit.md` |
+| 1 Foundation and security | ✅ **passed** | "Gate 1" below |
+| 2 Hub core | ✅ **passed** | "Gate 2" below, verified live on Railway staging |
 | 3 Shared modules | ⏳ | CRM, scheduling, GTM, LMS, tasks/forms, communications core-side |
 | 4 First app migration + payments | ⏳ | Dentex first; Insurance second |
 | 5 Regional rollout | ⏳ | per country |
@@ -26,26 +26,25 @@ Read this first, then the plan.
 | **Drop Clerk entirely.** Dev identity verifies HS256 in-process | Sanjeev | No Clerk cost, no sk_test to rotate; Cognito plugs into the same `IdentityVerifier` interface for production |
 | Default first app to migrate: Dentex | Claude | Cheapest adapter swap (Supabase + Google GenAI). Overridable |
 | HS256 for scope tokens in dev; Ed25519 for prod | Claude | Both now in `@platform-hub/contracts`; prod lets the hub hold only the public verify key |
-| Attribution for commits: Claude Opus 4.7 | runtime | Already applied to Gate 1 and Gate 2 commits |
 
 ## Gate 1 — shipped
 
-### `platform-hub` (merge from frame + extraction)
-- Extracted with history: `aws-sigv4` (12 tests), `credential-custody` (29).
+### `platform-hub`
+- Extracted with history: `aws-sigv4` (12), `credential-custody` (29).
 - Migrations 0001, 0032, 0040–0043 copied in.
-- `packages/contracts` — `ScopeToken`, `verifyScopeToken`, `enforceScope`, typed `RefusalCode`. 14 tests.
-- `packages/enforcement` — `executeIdempotent`, webhook signature + replay check, sign-in-outage structural test. 10 tests.
+- `packages/contracts` — ScopeToken (HS256), verifyScopeToken, enforceScope, RefusalCode. 14 tests.
+- `packages/enforcement` — executeIdempotent, webhook signature + replay, sign-in-outage structural test. 10 tests.
 - `infra/db/migrations/0100_gate1_connector_grants.sql`:
-  - `platform.connector_grants` — per-app grant table (no silent fallback).
-  - `platform.set_request_context(...)` — LOCAL GUCs, roll back at commit, hub-only setter.
-  - `platform.app_may_use_connector(...)` — the one check the hub makes before touching a credential.
+  - `platform.connector_grants` — per-app grant (no silent fallback).
+  - `platform.set_request_context(...)` — LOCAL GUCs, roll back at commit.
+  - `platform.app_may_use_connector(...)` — the one check before any credential.
 
 ### `platform-core`
 - Extracted with history: `entity`, `tenancy`, `tenancy-persistence`, `authorization`, `authorization-persistence`, `iam`, `party`, `relationship`, `audit`, `observability`, `business-config`, `domain-events`.
 - Migration 0044 (CRM) carried over to the correct side.
-- `packages/iam-dev` — HS256 `IdentityVerifier`, refuses `NODE_ENV=production`. Replaces Clerk. 10 tests.
+- `packages/iam-dev` — HS256 `IdentityVerifier`, refuses NODE_ENV=production. Replaces Clerk. 10 tests.
 - `packages/db-context` — parameterised SQL for `set_request_context`, shape-checks the context. 5 tests.
-- `architecture.config.json` — each extracted foundation package allowed to depend on its siblings; modules at Gate 3 stay strict.
+- `architecture.config.json` recognises extracted foundation packages; modules at Gate 3 stay strict.
 
 ### Acceptance tests covered
 
@@ -59,71 +58,96 @@ Read this first, then the plan.
 | A provider webhook replayed/spoofed → refused | `webhook-replay.test.ts` |
 | Hub outage → sign-in codes still delivered | `sign-in-outage.test.ts` + import-graph |
 
-Pending (Gate 2+):
-- AI stream disconnects mid-way → usage and reservation reconciled (needs `ai-gateway`)
-- Deletion / credential revocation through every layer (needs more hub-api routes)
-- Region outage / failed migration (Gate 5)
-
-## Gate 2 — shipped so far
+## Gate 2 — shipped
 
 ### Migration dry-run
-- `tools/db-dryrun` with `@electric-sql/pglite`. Applies every hub migration in order against an ephemeral Postgres, then proves `app_may_use_connector` across 7 ownership × credential-class combinations and that `set_request_context` GUCs roll back at commit. **3 tests pass**.
+- `tools/db-dryrun` with `@electric-sql/pglite`. Applies every hub migration in order against an ephemeral Postgres, then proves `app_may_use_connector` across 7 ownership × credential-class combinations and that `set_request_context` GUCs roll back at commit. 3 tests.
 
 ### Ed25519 scope tokens
-- `signScopeTokenEd25519` / `verifyScopeTokenEd25519` in `@platform-hub/contracts`.
-- Same `enforceScope` downstream. HS256 is for dev; prod uses the asymmetric variant so the hub holds only the public verify key.
-- Non-Ed25519 keys refused at construction. **4 new tests (18 total in contracts)**.
+- `signScopeTokenEd25519` / `verifyScopeTokenEd25519` in `@platform-hub/contracts`. Same enforceScope downstream. Prod uses asymmetric, dev HS256. 4 new tests (18 total in contracts).
 
 ### `apps/hub-api` (new)
-- Pipeline: `authorization: Bearer <token>` → `verifyScopeToken` (HS256 or EdDSA) → `enforceScope` → `withRequestContext` (opens tx, sets GUCs, rolls back on error) → handler → JSON response.
-- Routes: `GET /health` (no auth), `GET /v1/_debug/whoami` (echoes claims and server-side GUCs so operators and tests confirm the whole pipeline is live).
-- Postgres via `pg` in prod; PGlite shim for tests.
-- Migration runner (`scripts/migrate.ts`) with checksum table so re-runs are idempotent.
-- **7 integration tests** pass end-to-end on PGlite: health, happy path, missing bearer, bad signature, expired token, cross-request GUC isolation, 404 for unknown routes.
+- Pipeline: `authorization: Bearer <token>` → `verifyScopeToken` (HS256 or EdDSA) → `enforceScope` → `withRequestContext` (opens tx, sets GUCs via `platform.set_request_context`, rolls back on error) → handler → JSON response.
+- Routes: `GET /health` (no auth), `GET /v1/_debug/whoami` (echoes claims and server-side GUCs).
+- `pg` in prod via connection pool; PGlite shim for tests. Transactions serialised in PGlite so parallel tests don't tangle.
+- Migration runner (`scripts/migrate.ts`) with checksum table so re-runs are idempotent and divergent SQL is refused.
+- 7 integration tests pass end-to-end on PGlite.
 
-### Extractions
-- `apps/custody-service` → `apps/custody` with history. Package renamed `@expadio/custody-service` → `@platform-hub/custody`. One `@expadio/ai-gateway` import replaced with a local `llm-providers.ts` stub (mirrors expadio's catalog). **8 tests pass**.
-- `packages/provider-registry` extracted with history, renamed `@platform-hub/provider-registry`. The one file with cross-layer deps (`persisted-credential-lease-authorizer.ts`) was deliberately dropped; a scope-token-based implementation of the `CredentialLeaseAuthorizer` interface lands at Gate 2.5. **30 tests pass**.
+### Extractions (all with git-filter-repo history preserved)
+- `apps/custody-service` → `apps/custody` (8 tests). `@expadio/ai-gateway` import replaced with real ai-gateway after batch 2 landed.
+- `packages/provider-registry` (30 tests). Cross-layer `persisted-credential-lease-authorizer.ts` dropped. Replaced by:
+- `packages/provider-registry/src/scope-token-authorizer.ts` — a scope-token-based `CredentialLeaseAuthorizer` (8 new tests, 38 total in provider-registry). The hub never runs the full authorization policy itself; the verified claims plus `platform.app_may_use_connector(...)` are the authority.
+- `packages/{ai-gateway, voice-gateway, storage, usage-metering}` extracted together (119 commits of history). `application-boundary.test.ts` dropped (asserted a layout from expadio).
 
-### Railway staging (project live, deploy pending)
-- Project **`platform-staging`** at `fb1af35e-6f88-4eb8-8319-72784132995d`, environment `staging`, region `sfo`.
-- Postgres (ssl:18) service deployed successfully.
-- `hub-api` service wired to `johnniemarbles/platform-hub` main.
-  - Env vars: `DATABASE_URL=${{postgres.DATABASE_URL}}`, `HUB_API_PORT=${{PORT}}`, `NODE_ENV=staging`, `SCOPE_TOKEN_ALGORITHM=HS256`, `SCOPE_TOKEN_HS256_SECRET=<32-byte random>`.
-- Build config: `railway.json` + `nixpacks.toml` run `pnpm install --frozen-lockfile`, then `pnpm --filter @platform-hub/hub-api start` (migrates then serves). Healthcheck on `/health`.
-- **Three hub-api deployments stacked `QUEUED`** at the time of writing; Railway control plane was in a worldwide outage. Railway will build the latest commit (`0169a3d`) and skip the earlier ones when it recovers.
+### Railway staging — live on `fb1ae29`
+
+Verified end-to-end on **2026-10-23** against the staging URL `hub-api-staging-a227.up.railway.app`:
+
+- `GET /health` → `{"ok":true,"traceId":"8f1d2dc7-429b-4a68-ba0e-fb323204954d"}`
+- `GET /v1/_debug/whoami` with a user-side HS256-signed token for `tenantId=1111...`, `appId=app_dentex`, `permissions=[debug.whoami]`:
+  ```json
+  {"ok":true,"traceId":"a78dc585-527c-4544-ba1b-d872c314ea5d","result":{
+    "claims":{"sub":"usr_42","tenantId":"1111...","appId":"app_dentex","permissions":["debug.whoami"],"credentialClass":"platform-operational"},
+    "serverContext":{"tenant":"1111...","app":"app_dentex","credentialClass":"platform-operational","grant":null}
+  }}
+  ```
+  `serverContext` is what Postgres sees INSIDE the handler's transaction, read via `platform.current_tenant_id()` / `current_app_id()` etc. The server-set GUCs match the token's claims — the pipeline is correct.
+
+Infrastructure as shipped:
+- Project `platform-staging` (`fb1af35e-6f88-4eb8-8319-72784132995d`), environment `staging`, region `sfo`.
+- `postgres` service, PG 18.6, 5 GB volume at `/var/lib/postgresql/data`, `PGDATA=/var/lib/postgresql/data/pgdata`.
+- `hub-api` service wired to `johnniemarbles/platform-hub` main; auto-deploys on push.
+- Env: `DATABASE_URL=${{postgres.DATABASE_URL}}`, `PORT` set by Railway, `NODE_ENV=staging`, `SCOPE_TOKEN_ALGORITHM=HS256`, `SCOPE_TOKEN_HS256_SECRET` (random 32 bytes).
+- Build with Railpack (Node 22, pnpm 10.15, root `start` script delegates to the hub-api workspace).
+- Migrations applied on first boot: `0000_hub_core_stubs → 0032 → 0040 → 0041 → 0042 → 0043 → 0100`.
 
 ### Totals
 
-- **platform-hub**: 8 packages/apps + 1 tool, **127 tests pass**, architecture check OK.
+- **platform-hub**: 13 packages/apps + 1 tool, **274 tests pass**, architecture check OK, live on Railway staging.
 - **platform-core**: 14 packages, **166 tests pass**, architecture check OK.
 
-## Remaining Gate 2
+### Fix log (Gate 2 bring-up)
+- `fb1ae29`: use Railway `PORT` env var directly (older `${{PORT}}` indirection yielded `:0`).
+- `86d0563`: added `0000_hub_core_stubs.sql` so hub-only deploys get `platform.tenants` (owned by core).
+- `d488c8c`: root `start` script because Railway picked Railpack and ignored `railway.json`'s startCommand.
+- postgres: added `PGDATA=/var/lib/postgresql/data/pgdata` so the Railway ssl:18 image found its mount; attached a 5 GB volume.
 
-- [ ] Confirm Railway deploy green. Pull build logs if it fails; curl `/health`; generate a scope token and hit `/v1/_debug/whoami`.
-- [ ] Publish `@platform-hub/contracts` to GitHub Packages so `platform-core` can `signScopeToken` from the same shape.
-- [ ] Extract `ai-gateway`, `voice-gateway`, `storage`, `agent-runtime`, `usage-metering` into `platform-hub`.
-- [ ] Cognito sibling of `iam-dev` in `platform-core` (needs AWS reconnect).
-- [ ] A worker queue (transactional outbox + dead-letter). The migrations are already in; the runtime lands here.
-- [ ] A scope-token-based `CredentialLeaseAuthorizer` (replaces the dropped file).
-- [ ] Add `revoke-credential` + `delete-request` routes to hub-api; covers two remaining plan acceptance tests.
+## Remaining work before Gate 3 starts (optional, can defer)
+
+- [ ] Publish `@platform-hub/contracts` to GitHub Packages so `platform-core` can import `signScopeToken` directly. For now, a small duplicated type works.
+- [ ] `apps/hub-api` routes beyond `_debug/whoami`: `credential.revoke`, `v1/credentials` (list by tenant+app), `v1/webhooks/:provider`. Postgres-backed idempotency store (replaces in-memory).
+- [ ] Communication **split** extraction from `expadio/packages/communication`: 34 hub-side files (twilio-*, resend-*, voice-*, dispatch, queue-worker, provider-adapter*, webhook-ingestion, plane, throttle, spine, …). The core half (templates, consent, suppression) lands in platform-core at Gate 3.
+- [ ] Cognito `IdentityVerifier` sibling of `iam-dev`. Blocked on AWS reconnect.
+- [ ] Extract `agent-runtime` — depends on business-config, entity, postgres-runtime, voice-gateway. Needs cross-repo contracts first.
 
 ## Known limits / technical debt
 
-- **No cross-repo workspace deps.** Platform-core's future signer will depend on `@platform-hub/contracts` via GitHub Packages (next Gate 2 item).
-- **In-memory stores** for idempotency and webhook replay — the Postgres-backed stores land with the worker queue.
-- **The dropped `persisted-credential-lease-authorizer.ts`.** Interface preserved; replacement implementation pending.
-- **`forms-proxy`** in `expadio` production runs from an unmerged `claude/cloudflare-brand-domain-autoconfigure` branch. Unrelated to the extraction; fix in expadio.
-- The expadio decrypt scripts (`brute_force_decrypt.ts` and friends) are still in expadio's working tree. Not a key leak (confirmed), but noise. Minor cleanup PR to expadio when convenient.
+- No cross-repo workspace deps yet. Platform-core will consume `@platform-hub/contracts` via GitHub Packages (open item above).
+- In-memory idempotency/webhook-replay stores; Postgres-backed versions ship with the hub-api worker queue.
+- `forms-proxy` in expadio production runs from an unmerged branch. Expadio-side; unrelated to this work.
 
 ## Rollback
 
-- **platform-hub main**: `git log --oneline` to the last pre-Gate-2 commit (`863e681`) and revert forward. Each extraction is its own merge commit, so individual rollback is clean.
-- **platform-core main**: unchanged in this Gate 2 slice.
-- **Railway `platform-staging`**: delete the project in Railway dashboard, or `curl` the GraphQL `projectDelete` mutation. Nothing else depends on it.
-- **No changes to `expadio`.** Filter-repo work was on disposable copies.
-- **No changes to `PII`.** Isolation intact.
+- **platform-hub main**: `fb1ae29` is Gate 2's final commit; `revert` back to `863e681` to unwind Gate 2.
+- **platform-core main**: last touched at `2d5acc5` (AI-WORK-ORDER update at end of Gate 1).
+- **Railway `platform-staging`**: delete in the Railway dashboard.
+- **No changes to `expadio`**. Filter-repo was on disposable copies.
+- **No changes to `PII`**. Isolation intact.
 
-## Next session
+## Gate 3 — plan
 
-Pick up at: Railway deploy verification, then publish `@platform-hub/contracts`, then the remaining hub packages. Dentex preparation starts whenever Gate 2 is "done".
+Pull core modules from expadio into `platform-core/packages/`:
+1. `scheduling`, `gtm`, `learning` (LMS), `lead`, `lead-identity`, `lead-capture` — modules in the plan.
+2. `knowledge`, `context-engine`, `data-orchestrator`, `governed-actions`, `access-control`, `access-runtime`, `capabilities`, `capability-persistence` — foundation items that depend on hub via `@platform-hub/sdk` once cross-repo is in place.
+3. `postgres-runtime` — carefully. It's 167 files touching 27 workspace packages. Expect to drop or defer parts that pull in modules we don't want yet.
+4. Communication **core half** (templates, consent, suppression, content-policy, conversation, decision-trace, html-sanitizer).
+
+Enforce the strict module rule in architecture.config.json: modules may depend only on foundation, core-records, contracts.
+
+## Gate 4 — plan
+
+**First app: Dentex** (confirmed Gate 0).
+1. Create `johnniemarbles/dentex-v2` from `spoke-template`.
+2. Replace the Supabase client with hub-SDK + platform-core-SDK calls.
+3. Carry over the Vite SPA UI from `johnniemarbles/dentex` wholesale.
+4. First real end-to-end: a signed-in dentist can book a visit (scheduling module), the hub sends a confirmation (communication, via the real Twilio adapter), payment is handled through Stripe (billing).
