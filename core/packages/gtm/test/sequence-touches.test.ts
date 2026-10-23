@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeSequenceTouches, listSlotsInTemplate } from './sequence-touches.ts';
+import { normalizeSequenceTouches, listSlotsInTemplate } from '../src/sequence-touches.ts';
 
 describe('normalizeSequenceTouches', () => {
   it('requires at least one touch', () => {

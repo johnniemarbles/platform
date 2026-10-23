@@ -8,6 +8,7 @@
     "./enrollment": "./src/enrollment.ts"
   },
   "scripts": {
-    "test": "vitest run --dir src"
+    "test": "node --experimental-strip-types --no-warnings --test test/*.test.ts",
+    "typecheck": "tsc --noEmit"
   }
 }

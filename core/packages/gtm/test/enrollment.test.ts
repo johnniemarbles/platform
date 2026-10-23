@@ -14,8 +14,8 @@ import {
   proposeOptimization,
   scoringMayAutoApprove,
   shouldConvertReplyToLead,
-} from './index.ts';
-import type { EnrollmentSnapshot } from './enrollment.ts';
+} from '../src/index.ts';
+import type { EnrollmentSnapshot } from '../src/enrollment.ts';
 
 const active: EnrollmentSnapshot = {
   enrollmentStatus: 'active',
