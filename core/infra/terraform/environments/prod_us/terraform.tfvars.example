@@ -1,0 +1,4 @@
+aws_region         = "us-east-1"
+auth_domain        = "auth.us.yourdomain.com"
+hub_api_image      = "123456789012.dkr.ecr.us-east-1.amazonaws.com/hub-api:latest"
+platform_api_image = "123456789012.dkr.ecr.us-east-1.amazonaws.com/platform-api:latest"

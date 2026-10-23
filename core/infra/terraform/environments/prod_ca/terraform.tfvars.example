@@ -1,0 +1,4 @@
+aws_region         = "ca-central-1"
+auth_domain        = "auth.ca.yourdomain.com"
+hub_api_image      = "123456789012.dkr.ecr.ca-central-1.amazonaws.com/hub-api:latest"
+platform_api_image = "123456789012.dkr.ecr.ca-central-1.amazonaws.com/platform-api:latest"
