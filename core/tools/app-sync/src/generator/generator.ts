@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
+import { resolve, dirname, relative } from 'node:path';
 import { validateManifest } from '../validate.ts';
 import { loadRegistry } from '../registry.ts';
 import { loadManifest } from '../manifest.ts';
@@ -12,12 +12,14 @@ import {
   generateClientIndex,
   generateColumnDef,
   toSnakeCase,
+  toCamelCase,
 } from './templates.ts';
 
 export interface GeneratorOptions {
   manifestPath: string;
   appDir?: string;
   platformRoot: string;
+  link?: boolean;
 }
 
 export interface FileOperation {
@@ -173,11 +175,27 @@ export function planGenerator(options: GeneratorOptions): {
   ) + '\n';
   addOp(resolve(packDir, 'tsconfig.json'), packTsconfig);
 
+  const readPerms = manifest.entities.map((e) => `${slugWithUnderscores}.${toSnakeCase(e.name)}.read`);
+  const writePerms = manifest.entities.flatMap((e) => [
+    `${slugWithUnderscores}.${toSnakeCase(e.name)}.read`,
+    `${slugWithUnderscores}.${toSnakeCase(e.name)}.write`,
+  ]);
+
   const appJson = JSON.stringify(
     {
       appId: manifest.appId,
       slug: manifest.slug,
       displayName: manifest.displayName,
+      bundles: {
+        'records-read': {
+          description: `Read all ${manifest.displayName} records`,
+          permissions: readPerms.map((key) => ({ key, since: '0.1.0', autoGrant: true })),
+        },
+        'records-write': {
+          description: `Write all ${manifest.displayName} records`,
+          permissions: writePerms.map((key) => ({ key, since: '0.1.0', autoGrant: true })),
+        },
+      },
       identityClients: manifest.identityClients,
     },
     null,
@@ -187,45 +205,73 @@ export function planGenerator(options: GeneratorOptions): {
 
   // roles.json
   const rolesJsonPath = resolve(packDir, 'roles.json');
-  let roles: Record<string, string[]> = {
-    owner: ['me.read'],
-    staff: ['me.read'],
-    viewer: ['me.read'],
+  let rolesTemplate: any = {
+    roles: {
+      owner: {
+        displayName: 'Owner',
+        bundles: ['platform.member', 'platform.admin', `${slug}.records-write`],
+      },
+      staff: {
+        displayName: 'Staff',
+        bundles: ['platform.member', `${slug}.records-write`],
+      },
+      viewer: {
+        displayName: 'Viewer',
+        bundles: ['platform.member', `${slug}.records-read`],
+      },
+    },
   };
+
   if (existsSync(rolesJsonPath)) {
     try {
-      roles = JSON.parse(readFileSync(rolesJsonPath, 'utf8'));
+      const parsed = JSON.parse(readFileSync(rolesJsonPath, 'utf8'));
+      if (parsed.roles) {
+        rolesTemplate = parsed;
+      }
     } catch {
       // use default
     }
   }
 
-  // Add module permissions
+  if (!rolesTemplate.roles.owner) {
+    rolesTemplate.roles.owner = { displayName: 'Owner', bundles: [] };
+  }
+  if (!rolesTemplate.roles.staff) {
+    rolesTemplate.roles.staff = { displayName: 'Staff', bundles: [] };
+  }
+  if (!rolesTemplate.roles.viewer) {
+    rolesTemplate.roles.viewer = { displayName: 'Viewer', bundles: [] };
+  }
+
+  const addBundle = (roleName: string, b: string) => {
+    if (!rolesTemplate.roles[roleName].bundles.includes(b)) {
+      rolesTemplate.roles[roleName].bundles.push(b);
+    }
+  };
+
+  addBundle('owner', 'platform.member');
+  addBundle('owner', 'platform.admin');
+  addBundle('owner', `${slug}.records-write`);
+
+  addBundle('staff', 'platform.member');
+  addBundle('staff', `${slug}.records-write`);
+
+  addBundle('viewer', 'platform.member');
+  addBundle('viewer', `${slug}.records-read`);
+
   for (const modRef of manifest.modules) {
     const regMod = registry.modules[modRef.id];
-    if (!regMod) continue;
-    for (const perm of regMod.permissions) {
-      if (!roles['owner']!.includes(perm)) roles['owner']!.push(perm);
-      if (!perm.endsWith('.manage') && !perm.endsWith('.admin') && !roles['staff']!.includes(perm)) {
-        roles['staff']!.push(perm);
+    if (!regMod || !regMod.bundles) continue;
+    for (const bundleName of Object.keys(regMod.bundles)) {
+      const bundleKey = `${modRef.id}.${bundleName}`;
+      addBundle('owner', bundleKey);
+      if (!bundleName.endsWith('manager') && !bundleName.endsWith('admin')) {
+        addBundle('staff', bundleKey);
       }
     }
   }
 
-  // Add entity permissions
-  for (const entity of manifest.entities) {
-    const entitySnake = toSnakeCase(entity.name);
-    const readKey = `${slugWithUnderscores}.${entitySnake}.read`;
-    const writeKey = `${slugWithUnderscores}.${entitySnake}.write`;
-
-    if (!roles['owner']!.includes(readKey)) roles['owner']!.push(readKey);
-    if (!roles['owner']!.includes(writeKey)) roles['owner']!.push(writeKey);
-    if (!roles['staff']!.includes(readKey)) roles['staff']!.push(readKey);
-    if (!roles['staff']!.includes(writeKey)) roles['staff']!.push(writeKey);
-    if (!roles['viewer']!.includes(readKey)) roles['viewer']!.push(readKey);
-  }
-
-  addOp(rolesJsonPath, JSON.stringify(roles, null, 2) + '\n');
+  addOp(rolesJsonPath, JSON.stringify(rolesTemplate, null, 2) + '\n');
 
   // Entities code & migrations
   const managedEntities = manifest.entities.filter((e) => e.managed !== false);
@@ -298,10 +344,84 @@ export function routes(): RouteDefinition[] {
 `;
   addOp(resolve(packDir, 'src/index.ts'), packIndexContent, true);
 
-  if (appDir && managedEntities.length > 0) {
-    const clientIndexPath = resolve(appDir, 'apps/web/src/platform/generated/index.ts');
-    const clientIndexContent = generateClientIndex(managedEntities);
-    addOp(clientIndexPath, clientIndexContent);
+  if (appDir) {
+    if (managedEntities.length > 0) {
+      const clientIndexPath = resolve(appDir, 'apps/web/src/platform/generated/index.ts');
+      const clientIndexContent = generateClientIndex(managedEntities);
+      addOp(clientIndexPath, clientIndexContent);
+    }
+
+    // Module SDK packages & platform.modules block in apps/web/src/platform/index.ts
+    const sdkModules: Array<{ id: string; sdkPackage: string; contractVersion: string; clientName: string }> = [];
+    for (const m of manifest.modules) {
+      const modDef = registry.modules[m.id];
+      if (modDef && modDef.sdkPackage) {
+        const clientName = `${toCamelCase(m.id)}Client`;
+        sdkModules.push({
+          id: m.id,
+          sdkPackage: modDef.sdkPackage,
+          contractVersion: modDef.contractVersion,
+          clientName,
+        });
+      }
+    }
+
+    // 1. Update apps/web/package.json dependencies
+    const webPkgPath = resolve(appDir, 'apps/web/package.json');
+    if (existsSync(webPkgPath)) {
+      const webPkg = JSON.parse(readFileSync(webPkgPath, 'utf8'));
+      webPkg.dependencies = webPkg.dependencies || {};
+      let changed = false;
+      for (const sm of sdkModules) {
+        const depVal = options.link
+          ? `link:${relative(resolve(appDir, 'apps/web'), resolve(platformRoot, 'core/sdk', sm.id))}`
+          : `^${sm.contractVersion}`;
+        if (webPkg.dependencies[sm.sdkPackage] !== depVal) {
+          webPkg.dependencies[sm.sdkPackage] = depVal;
+          changed = true;
+        }
+      }
+      if (options.link && sdkModules.length > 0) {
+        const transportVal = `link:${relative(resolve(appDir, 'apps/web'), resolve(platformRoot, 'core/sdk/transport'))}`;
+        if (webPkg.dependencies['@platform-sdk/transport'] !== transportVal) {
+          webPkg.dependencies['@platform-sdk/transport'] = transportVal;
+          changed = true;
+        }
+      }
+      if (changed) {
+        addOp(webPkgPath, JSON.stringify(webPkg, null, 2) + '\n');
+      }
+    }
+
+    // 2. Regenerate platform.modules block in apps/web/src/platform/index.ts
+    const webPlatformIndexPath = resolve(appDir, 'apps/web/src/platform/index.ts');
+    if (existsSync(webPlatformIndexPath) && sdkModules.length > 0) {
+      const currentContent = readFileSync(webPlatformIndexPath, 'utf8');
+      const BEGIN_MARKER = '// ---- BEGIN MODULES (generated by app-sync) ----';
+      const END_MARKER = '// ---- END MODULES (generated by app-sync) ----';
+
+      const importLines = sdkModules.map((sm) => `import { ${sm.clientName} } from '${sm.sdkPackage}';`).join('\n');
+      const moduleAssignments = sdkModules.map((sm) => `  ${toCamelCase(sm.id)}: ${sm.clientName}(platform),`).join('\n');
+      const newBlock = `${BEGIN_MARKER}\n${importLines}\n\nplatform.modules = {\n${moduleAssignments}\n};\n${END_MARKER}`;
+
+      let updatedIndexContent: string;
+      if (currentContent.includes(BEGIN_MARKER) && currentContent.includes(END_MARKER)) {
+        const before = currentContent.slice(0, currentContent.indexOf(BEGIN_MARKER));
+        const after = currentContent.slice(currentContent.indexOf(END_MARKER) + END_MARKER.length);
+        updatedIndexContent = `${before}${newBlock}${after}`;
+      } else {
+        const platformMatch = currentContent.match(/export const platform = new PlatformApi\(\{[\s\S]*?\}\);/);
+        if (platformMatch && platformMatch.index !== undefined) {
+          const insertPos = platformMatch.index + platformMatch[0].length;
+          updatedIndexContent = `${currentContent.slice(0, insertPos)}\n\n${newBlock}\n${currentContent.slice(insertPos)}`;
+        } else {
+          updatedIndexContent = `${currentContent}\n\n${newBlock}\n`;
+        }
+      }
+      if (updatedIndexContent !== currentContent) {
+        addOp(webPlatformIndexPath, updatedIndexContent);
+      }
+    }
   }
 
   // Update platform-api dependencies & app-packs.ts

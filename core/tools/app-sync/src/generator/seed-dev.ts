@@ -95,13 +95,29 @@ export async function seedDev(options: SeedDevOptions): Promise<{ token: string;
     const tenantId = tRes.rows[0]?.tenant_id;
     if (!tenantId) throw new Error('Failed to resolve or create dev tenant');
 
-    // 4. Activate app for tenant
+    // 4. Activate app for tenant and ensure system roles
     await pool.query(
       `INSERT INTO platform.tenant_apps (tenant_id, app_id)
        VALUES ($1, $2)
        ON CONFLICT (tenant_id, app_id) DO NOTHING`,
       [tenantId, manifest.appId]
     );
+
+    await pool.query("SELECT platform.set_request_context($1::uuid, $2, '', 'platform-operational', NULL)", [
+      tenantId,
+      manifest.appId,
+    ]);
+    await pool.query(
+      `INSERT INTO platform.roles (tenant_id, app_id, role_key, display_name, is_system)
+       VALUES ($1, $2, 'owner', 'Owner', true)
+       ON CONFLICT (tenant_id, app_id, role_key) DO NOTHING`,
+      [tenantId, manifest.appId]
+    );
+    const rOwner = await pool.query<{ role_id: string }>(
+      'SELECT role_id FROM platform.roles WHERE tenant_id = $1 AND app_id = $2 AND role_key = $3',
+      [tenantId, manifest.appId, 'owner']
+    );
+    const ownerRoleId = rOwner.rows[0]?.role_id;
 
     // 5. Person & Membership
     const devSubject = 'usr_dev_owner';
@@ -116,11 +132,11 @@ export async function seedDev(options: SeedDevOptions): Promise<{ token: string;
     const membershipId = mRes.rows[0]!.membership_id;
     const personId = mRes.rows[0]!.person_id;
 
-    // 6. Role assignment
+    // 6. Role assignment by role_id
     await pool.query(
-      `INSERT INTO platform.role_assignments (membership_id, app_id, role_key, permissions, hierarchy_scope, granted_by)
-       VALUES ($1, $2, 'owner', $3, $4, $5)`,
-      [membershipId, manifest.appId, ownerPermissions, `tenant/${tenantId}`, personId]
+      `INSERT INTO platform.role_assignments (membership_id, app_id, role_key, role_id, permissions, hierarchy_scope, granted_by)
+       VALUES ($1, $2, 'owner', $3, '{}', $4, $5)`,
+      [membershipId, manifest.appId, ownerRoleId ?? null, `tenant/${tenantId}`, personId]
     );
 
     // 7. Mint token

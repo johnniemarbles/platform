@@ -51,6 +51,18 @@ async function main() {
     const manifest = loadManifest(manifestPath, platformDir);
     const problems = validateManifest(manifest, registry);
 
+    const isStrict = Boolean(flags['strict']);
+    if (isStrict) {
+      const { validateStrict } = await import('./validate.ts');
+      const strictProblems = validateStrict({
+        manifest,
+        registry,
+        appDir: flags['app-dir'] ?? process.cwd(),
+        platformDir,
+      });
+      problems.push(...strictProblems);
+    }
+
     const errors = problems.filter(p => p.level === 'error');
     const warnings = problems.filter(p => p.level === 'warning');
 
@@ -75,6 +87,7 @@ async function main() {
       manifestPath,
       platformRoot: platformDir,
       appDir: flags['app-dir'],
+      link: Boolean(flags['link']),
     });
 
     console.log(`[app-sync plan] Planned operations for manifest:`);
@@ -90,6 +103,7 @@ async function main() {
       manifestPath,
       platformRoot: platformDir,
       appDir: flags['app-dir'],
+      link: Boolean(flags['link']),
     });
 
     console.log(`[app-sync sync] Sync complete:`);

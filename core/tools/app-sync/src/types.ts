@@ -1,11 +1,31 @@
 export type ModuleStatus = 'available' | 'library' | 'planned' | 'hub';
 
+export interface BundlePermission {
+  key: string;
+  since: string;
+  autoGrant?: boolean;
+}
+
+export interface ModuleBundle {
+  description: string;
+  permissions: BundlePermission[];
+}
+
+export interface ModuleVersion {
+  major: number;
+  status: 'current' | 'deprecated';
+  sunset?: string | null;
+}
+
 export interface ModuleDefinition {
   status: ModuleStatus;
   package: string;
   contractVersion: string;
   summary: string;
   permissions: string[];
+  bundles: Record<string, ModuleBundle>;
+  sdkPackage?: string | null;
+  versions?: ModuleVersion[];
   routes: string[];
   migrations: string[];
   uiKit: string | null;

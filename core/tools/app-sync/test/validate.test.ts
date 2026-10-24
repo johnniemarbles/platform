@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
 import { loadRegistry } from '../src/registry.ts';
-import { validateManifest } from '../src/validate.ts';
+import { validateManifest, validateStrict } from '../src/validate.ts';
 import type { AppManifest, ModuleRegistry } from '../src/types.ts';
 
 const platformRoot = resolve(import.meta.dirname, '../../../..');
@@ -19,6 +19,15 @@ const mockRegistry: ModuleRegistry = {
       routes: ['POST /v1/bookings', 'GET /v1/bookings'],
       migrations: ['0012_platform_bookings.sql'],
       uiKit: null,
+      bundles: {
+        staff: {
+          description: 'Scheduling staff permissions',
+          permissions: [
+            { key: 'bookings.create', since: '0.1.0', autoGrant: true },
+            { key: 'bookings.read', since: '0.1.0', autoGrant: true },
+          ],
+        },
+      },
     },
     crm: {
       status: 'library',
@@ -29,6 +38,7 @@ const mockRegistry: ModuleRegistry = {
       routes: [],
       migrations: [],
       uiKit: null,
+      bundles: {},
     },
     'crm-advanced': {
       status: 'planned',
@@ -39,6 +49,7 @@ const mockRegistry: ModuleRegistry = {
       routes: [],
       migrations: [],
       uiKit: null,
+      bundles: {},
     },
   },
 };
@@ -181,3 +192,49 @@ test('loadRegistry successfully parses and validates core/registry/modules.json'
   assert.ok(registry.modules['learning']);
   assert.ok(registry.modules['communication']);
 });
+
+test('validateStrict: module deprecated with sunset within 60 days produces error', () => {
+  const regWithSunset: ModuleRegistry = {
+    ...mockRegistry,
+    modules: {
+      ...mockRegistry.modules,
+      scheduling: {
+        ...mockRegistry.modules['scheduling']!,
+        versions: [{ major: 0, status: 'deprecated', sunset: '2026-11-01' }],
+      },
+    },
+  };
+  const problems = validateStrict({
+    manifest: baseValidManifest,
+    registry: regWithSunset,
+    appDir: '/tmp/fake-app',
+    platformDir: platformRoot,
+    now: new Date('2026-10-24'),
+  });
+  assert.ok(problems.some((p) => p.level === 'error' && p.message.includes('within 60 days')));
+});
+
+test('validateStrict: registry ahead by minor produces warning with changelog notes', () => {
+  const regAhead: ModuleRegistry = {
+    ...mockRegistry,
+    modules: {
+      ...mockRegistry.modules,
+      scheduling: {
+        ...mockRegistry.modules['scheduling']!,
+        contractVersion: '0.2.0',
+      },
+    },
+  };
+  const problems = validateStrict({
+    manifest: {
+      ...baseValidManifest,
+      modules: [{ id: 'scheduling', version: '^0.1.0' }],
+    },
+    registry: regAhead,
+    appDir: '/tmp/fake-app',
+    platformDir: platformRoot,
+    now: new Date('2026-10-24'),
+  });
+  assert.ok(problems.some((p) => p.level === 'warning' && p.message.includes('registry is ahead')));
+});
+

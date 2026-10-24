@@ -31,14 +31,7 @@ export async function resolveMembership(
   }>(
     `SELECT m.membership_id::text, m.person_id::text, m.tenant_id::text,
             t.country, t.region,
-            COALESCE(
-              (SELECT array_agg(DISTINCT p) FROM platform.role_assignments ra,
-                     LATERAL unnest(ra.permissions) p
-                WHERE ra.membership_id = m.membership_id
-                  AND ra.app_id        = $4
-                  AND ra.revoked_at IS NULL
-                  AND (ra.expires_at IS NULL OR ra.expires_at > now())),
-              ARRAY[]::text[]) AS permissions,
+            platform.effective_permissions(m.membership_id, $4::text) AS permissions,
             (SELECT ra.hierarchy_scope
                FROM platform.role_assignments ra
               WHERE ra.membership_id = m.membership_id
