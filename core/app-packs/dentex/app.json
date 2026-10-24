@@ -1,0 +1,14 @@
+{
+  "appId": "app_dentex",
+  "slug": "dentex",
+  "displayName": "Dentex",
+  "identityClients": {
+    "dev": [
+      {
+        "provider": "dev",
+        "poolId": "dev",
+        "clientId": "dev-dentex"
+      }
+    ]
+  }
+}

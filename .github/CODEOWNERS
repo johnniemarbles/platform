@@ -5,3 +5,5 @@
 /core/registry/         @johnniemarbles
 # one line per app pack, owned by that app's owners, e.g.:
 # /core/app-packs/dentex/ @johnniemarbles
+/core/app-packs/demo/ @johnniemarbles
+/core/app-packs/factory-smoke/ @johnniemarbles

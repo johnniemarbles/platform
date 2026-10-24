@@ -1,11 +1,10 @@
+import type { RouteDefinition } from '@platform-core/route-kit';
 import { meRoutes } from './routes/me.ts';
-import { bookingsRoutes, type BookingsRouteOptions } from './routes/bookings.ts';
-import type { RouteDefinition } from './handler.ts';
+import { appPacks } from './app-packs.ts';
 
-export function routesFor(appId: string, options?: BookingsRouteOptions): readonly RouteDefinition[] {
+export function routes(): readonly RouteDefinition[] {
   return [
-    ...meRoutes(appId),
-    ...bookingsRoutes(appId, options),
+    ...meRoutes(),
+    ...appPacks.flatMap((p) => p.routes()),
   ];
 }
-

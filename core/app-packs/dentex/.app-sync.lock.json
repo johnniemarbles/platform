@@ -1,0 +1,27 @@
+{
+  "manifestVersion": 1,
+  "entities": {
+    "patientProfile": {
+      "fields": {
+        "insuranceProvider": {
+          "type": "text",
+          "maxLength": 120
+        },
+        "preferredCity": {
+          "type": "text",
+          "maxLength": 120
+        },
+        "familyMembers": {
+          "type": "jsonb"
+        }
+      },
+      "migrationFiles": [
+        "0001_create_app_dentex_patient_profile.sql"
+      ]
+    }
+  },
+  "modules": [
+    "scheduling",
+    "communication"
+  ]
+}

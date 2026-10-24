@@ -1,8 +1,8 @@
 import type { IncomingMessage } from 'node:http';
 import { randomUUID } from 'node:crypto';
-import type { HandlerContext, RouteDefinition } from '../handler.ts';
+import type { HandlerContext, RouteDefinition } from '@platform-core/route-kit';
 import { refusal } from '@platform-hub/contracts';
-import { mintScopeToken, signerFromEnv, type ScopeTokenSignerConfig } from '../scope-token.ts';
+import { mintScopeToken, signerFromEnv, type ScopeTokenSignerConfig } from '@platform-core/route-kit';
 
 export interface CreateBookingBody {
   readonly patientName: string;
