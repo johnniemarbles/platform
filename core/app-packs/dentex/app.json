@@ -2,6 +2,33 @@
   "appId": "app_dentex",
   "slug": "dentex",
   "displayName": "Dentex",
+  "bundles": {
+    "records-read": {
+      "description": "Read all Dentex records",
+      "permissions": [
+        {
+          "key": "dentex.patient_profile.read",
+          "since": "0.1.0",
+          "autoGrant": true
+        }
+      ]
+    },
+    "records-write": {
+      "description": "Write all Dentex records",
+      "permissions": [
+        {
+          "key": "dentex.patient_profile.read",
+          "since": "0.1.0",
+          "autoGrant": true
+        },
+        {
+          "key": "dentex.patient_profile.write",
+          "since": "0.1.0",
+          "autoGrant": true
+        }
+      ]
+    }
+  },
   "identityClients": {
     "dev": [
       {

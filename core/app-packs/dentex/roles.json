@@ -1,23 +1,30 @@
 {
-  "owner": [
-    "me.read",
-    "bookings.create",
-    "bookings.read",
-    "communication.email.send",
-    "dentex.patient_profile.read",
-    "dentex.patient_profile.write"
-  ],
-  "staff": [
-    "me.read",
-    "bookings.create",
-    "bookings.read",
-    "dentex.patient_profile.read",
-    "dentex.patient_profile.write",
-    "communication.email.send"
-  ],
-  "viewer": [
-    "me.read",
-    "bookings.read",
-    "dentex.patient_profile.read"
-  ]
+  "roles": {
+    "owner": {
+      "displayName": "Owner",
+      "bundles": [
+        "platform.member",
+        "platform.admin",
+        "dentex.records-write",
+        "scheduling.staff",
+        "communication.sender"
+      ]
+    },
+    "staff": {
+      "displayName": "Staff",
+      "bundles": [
+        "platform.member",
+        "dentex.records-write",
+        "scheduling.staff",
+        "communication.sender"
+      ]
+    },
+    "viewer": {
+      "displayName": "Viewer",
+      "bundles": [
+        "platform.member",
+        "dentex.records-read"
+      ]
+    }
+  }
 }

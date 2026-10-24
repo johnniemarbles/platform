@@ -2,14 +2,80 @@
   "$schema": "./modules.schema.json",
   "registryVersion": 1,
   "modules": {
+    "platform": {
+      "status": "available",
+      "package": "@platform-core/iam",
+      "contractVersion": "1.0.0",
+      "summary": "Platform foundational IAM, session, and role administration.",
+      "permissions": [
+        "me.read",
+        "admin.role.read",
+        "admin.role.manage",
+        "admin.member.search",
+        "admin.member.assign"
+      ],
+      "bundles": {
+        "member": {
+          "description": "Basic member identity and me access",
+          "permissions": [
+            { "key": "me.read", "since": "1.0.0", "autoGrant": true }
+          ]
+        },
+        "admin": {
+          "description": "Tenant role and member administration",
+          "permissions": [
+            { "key": "admin.role.read", "since": "1.0.0", "autoGrant": true },
+            { "key": "admin.role.manage", "since": "1.0.0", "autoGrant": true },
+            { "key": "admin.member.search", "since": "1.0.0", "autoGrant": true },
+            { "key": "admin.member.assign", "since": "1.0.0", "autoGrant": true }
+          ]
+        }
+      },
+      "routes": [
+        "GET /v1/me"
+      ],
+      "migrations": [
+        "0010_platform_tenants.sql",
+        "0011_platform_memberships.sql",
+        "0014_platform_apps.sql",
+        "0017_roles_catalog.sql",
+        "0018_roles_backfill.sql"
+      ],
+      "sdkPackage": "@platform-sdk/platform",
+      "versions": [
+        { "major": 1, "status": "current", "sunset": null }
+      ],
+      "uiKit": null
+    },
     "scheduling": {
       "status": "available",
       "package": "@platform-core/scheduling",
       "contractVersion": "0.1.0",
       "summary": "Appointment states, free-slot math, notification presets. Bookings routes in platform-api.",
-      "permissions": ["bookings.create", "bookings.read"],
-      "routes": ["POST /v1/bookings", "GET /v1/bookings"],
-      "migrations": ["0012_platform_bookings.sql"],
+      "permissions": [
+        "bookings.create",
+        "bookings.read"
+      ],
+      "bundles": {
+        "staff": {
+          "description": "Staff booking management",
+          "permissions": [
+            { "key": "bookings.create", "since": "0.1.0", "autoGrant": true },
+            { "key": "bookings.read", "since": "0.1.0", "autoGrant": true }
+          ]
+        }
+      },
+      "routes": [
+        "POST /v1/bookings",
+        "GET /v1/bookings"
+      ],
+      "migrations": [
+        "0012_platform_bookings.sql"
+      ],
+      "sdkPackage": "@platform-sdk/scheduling",
+      "versions": [
+        { "major": 1, "status": "current", "sunset": null }
+      ],
       "uiKit": null,
       "notes": "Routes and table are Dentex-shaped today (F5); generalised in Phase C.3."
     },
@@ -19,8 +85,16 @@
       "contractVersion": "0.1.0",
       "summary": "Lead stages, sources, scoring, person resolution. Accounts/contacts tables from 0044.",
       "permissions": [],
+      "bundles": {},
       "routes": [],
-      "migrations": ["0013_platform_organizations.sql", "0044_crm_party.sql"],
+      "migrations": [
+        "0013_platform_organizations.sql",
+        "0044_crm_party.sql"
+      ],
+      "sdkPackage": null,
+      "versions": [
+        { "major": 1, "status": "current", "sunset": null }
+      ],
       "uiKit": null
     },
     "gtm": {
@@ -29,8 +103,13 @@
       "contractVersion": "0.1.0",
       "summary": "AutoGTM sequences, ICP, enrollment state machine.",
       "permissions": [],
+      "bundles": {},
       "routes": [],
       "migrations": [],
+      "sdkPackage": null,
+      "versions": [
+        { "major": 1, "status": "current", "sunset": null }
+      ],
       "uiKit": null
     },
     "learning": {
@@ -39,8 +118,13 @@
       "contractVersion": "0.1.0",
       "summary": "LMS courses, enrollment, progress.",
       "permissions": [],
+      "bundles": {},
       "routes": [],
       "migrations": [],
+      "sdkPackage": null,
+      "versions": [
+        { "major": 1, "status": "current", "sunset": null }
+      ],
       "uiKit": null
     },
     "communication": {
@@ -48,9 +132,23 @@
       "package": "@platform-hub/communication",
       "contractVersion": "0.1.0",
       "summary": "Templated email/SMS through hub-api. Apps reach it only via platform-api routes that mint a least-privilege scope token.",
-      "permissions": ["communication.email.send"],
+      "permissions": [
+        "communication.email.send"
+      ],
+      "bundles": {
+        "sender": {
+          "description": "Communication sender",
+          "permissions": [
+            { "key": "communication.email.send", "since": "0.1.0", "autoGrant": true }
+          ]
+        }
+      },
       "routes": [],
       "migrations": [],
+      "sdkPackage": null,
+      "versions": [
+        { "major": 1, "status": "current", "sunset": null }
+      ],
       "uiKit": null
     },
     "crm-advanced": {
@@ -59,8 +157,13 @@
       "contractVersion": "0.0.0",
       "summary": "Phase C.1",
       "permissions": [],
+      "bundles": {},
       "routes": [],
       "migrations": [],
+      "sdkPackage": null,
+      "versions": [
+        { "major": 1, "status": "current", "sunset": null }
+      ],
       "uiKit": null
     },
     "directory": {
@@ -69,8 +172,13 @@
       "contractVersion": "0.0.0",
       "summary": "Phase C.2",
       "permissions": [],
+      "bundles": {},
       "routes": [],
       "migrations": [],
+      "sdkPackage": null,
+      "versions": [
+        { "major": 1, "status": "current", "sunset": null }
+      ],
       "uiKit": null
     }
   }

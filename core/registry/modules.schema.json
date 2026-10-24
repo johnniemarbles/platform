@@ -9,7 +9,7 @@
       "propertyNames": { "pattern": "^[a-z][a-z0-9-]{1,39}$" },
       "additionalProperties": {
         "type": "object",
-        "required": ["status", "package", "contractVersion", "summary", "permissions", "routes", "migrations", "uiKit"],
+        "required": ["status", "package", "contractVersion", "summary", "permissions", "bundles", "routes", "migrations", "uiKit"],
         "additionalProperties": false,
         "properties": {
           "status": { "enum": ["available", "library", "planned", "hub"] },
@@ -17,7 +17,46 @@
           "contractVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
           "summary": { "type": "string", "minLength": 1 },
           "permissions": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$" } },
-          "routes": { "type": "array", "items": { "type": "string", "pattern": "^(GET|POST|PATCH|PUT|DELETE) /v1/" } },
+          "bundles": {
+            "type": "object",
+            "propertyNames": { "pattern": "^[a-z][a-z0-9_-]{1,40}$" },
+            "additionalProperties": {
+              "type": "object",
+              "required": ["description", "permissions"],
+              "additionalProperties": false,
+              "properties": {
+                "description": { "type": "string", "minLength": 1 },
+                "permissions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": ["key", "since"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "key": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$" },
+                      "since": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+                      "autoGrant": { "type": "boolean", "default": true }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "sdkPackage": { "type": ["string", "null"], "pattern": "^@platform-sdk/[a-z0-9-]+$" },
+          "versions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["major", "status"],
+              "additionalProperties": false,
+              "properties": {
+                "major": { "type": "integer", "minimum": 1 },
+                "status": { "enum": ["current", "deprecated"] },
+                "sunset": { "type": ["string", "null"], "pattern": "^\\d{4}-\\d{2}-\\d{2}$" }
+              }
+            }
+          },
+          "routes": { "type": "array", "items": { "type": "string", "pattern": "^(GET|POST|PATCH|PUT|DELETE) /v[0-9]+/" } },
           "migrations": { "type": "array", "items": { "type": "string", "pattern": "^\\d{4}_[a-z0-9_]+\\.sql$" } },
           "uiKit": { "type": ["string", "null"] },
           "notes": { "type": "string" }
