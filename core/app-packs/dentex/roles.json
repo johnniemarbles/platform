@@ -8,7 +8,9 @@
         "dentex.records-write",
         "scheduling.staff",
         "communication.sender",
-        "crm-advanced.manager"
+        "crm-advanced.manager",
+        "directory.manager",
+        "directory.staff"
       ]
     },
     "staff": {
@@ -18,7 +20,8 @@
         "dentex.records-write",
         "scheduling.staff",
         "communication.sender",
-        "crm-advanced.staff"
+        "crm-advanced.staff",
+        "directory.staff"
       ]
     },
     "viewer": {

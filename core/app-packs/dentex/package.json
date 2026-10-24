@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@platform-core/route-kit": "workspace:*",
+    "@platform-core/directory": "workspace:*",
     "@platform-hub/contracts": "workspace:*"
   },
   "devDependencies": {

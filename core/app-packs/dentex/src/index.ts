@@ -12,8 +12,17 @@ export function generatedRoutes(): RouteDefinition[] {
 
 // ---- CUSTOM (preserved by app-sync) ----
 import { bookingsRoutes, type BookingsRouteOptions } from './routes/bookings.ts';
+import type { KindSchema } from '@platform-core/directory';
 
 export type { BookingsRouteOptions };
+
+export const clinicKindSchema: KindSchema = {
+  properties: {
+    services: { type: 'string[]', required: false },
+    rating: { type: 'number', required: false },
+    imageUrl: { type: 'string', required: false },
+  },
+};
 
 export function routes(options?: BookingsRouteOptions): readonly RouteDefinition[] {
   return [...generatedRoutes(), ...bookingsRoutes(appId, options)];

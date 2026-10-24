@@ -29,6 +29,9 @@ importers:
 
   core/app-packs/dentex:
     dependencies:
+      '@platform-core/directory':
+        specifier: workspace:*
+        version: link:../../packages/directory
       '@platform-core/route-kit':
         specifier: workspace:*
         version: link:../../packages/route-kit
@@ -66,6 +69,9 @@ importers:
       '@platform-core/db-context':
         specifier: workspace:*
         version: link:../../packages/db-context
+      '@platform-core/directory':
+        specifier: workspace:*
+        version: link:../../packages/directory
       '@platform-core/entity':
         specifier: workspace:*
         version: link:../../packages/entity
@@ -124,6 +130,8 @@ importers:
   core/packages/crm: {}
 
   core/packages/db-context: {}
+
+  core/packages/directory: {}
 
   core/packages/domain-events:
     dependencies:
@@ -227,6 +235,19 @@ importers:
         version: link:../tenancy
 
   core/sdk/crm:
+    dependencies:
+      '@platform-sdk/transport':
+        specifier: workspace:*
+        version: link:../transport
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.5
+        version: 22.20.5
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+
+  core/sdk/directory:
     dependencies:
       '@platform-sdk/transport':
         specifier: workspace:*
