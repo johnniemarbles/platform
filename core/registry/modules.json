@@ -229,15 +229,53 @@
       "uiKit": null
     },
     "directory": {
-      "status": "planned",
+      "status": "available",
       "package": "@platform-core/directory",
-      "contractVersion": "0.0.0",
-      "summary": "Phase C.2",
-      "permissions": [],
-      "bundles": {},
-      "routes": [],
-      "migrations": [],
-      "sdkPackage": null,
+      "contractVersion": "1.0.0",
+      "summary": "Industry-neutral directory listings (clinics, salons, properties), external provider deduplication, claims, and featured placements.",
+      "permissions": [
+        "directory.listing.read",
+        "directory.listing.write",
+        "directory.listing.claim",
+        "directory.listing.manage",
+        "directory.featured.manage"
+      ],
+      "bundles": {
+        "staff": {
+          "description": "Read and write directory listings and initiate claims.",
+          "permissions": [
+            { "key": "directory.listing.read", "since": "1.0.0", "autoGrant": true },
+            { "key": "directory.listing.write", "since": "1.0.0", "autoGrant": true },
+            { "key": "directory.listing.claim", "since": "1.0.0", "autoGrant": true }
+          ]
+        },
+        "manager": {
+          "description": "Full directory management including listing claim approvals and featured slot allocation.",
+          "permissions": [
+            { "key": "directory.listing.read", "since": "1.0.0", "autoGrant": true },
+            { "key": "directory.listing.write", "since": "1.0.0", "autoGrant": true },
+            { "key": "directory.listing.claim", "since": "1.0.0", "autoGrant": true },
+            { "key": "directory.listing.manage", "since": "1.0.0", "autoGrant": true },
+            { "key": "directory.featured.manage", "since": "1.0.0", "autoGrant": true }
+          ]
+        }
+      },
+      "routes": [
+        "GET /v1/directory/listings",
+        "POST /v1/directory/listings",
+        "GET /v1/directory/listings/:id",
+        "PATCH /v1/directory/listings/:id",
+        "DELETE /v1/directory/listings/:id",
+        "POST /v1/directory/listings/:id/claim",
+        "POST /v1/directory/listings/:id/claim/decision",
+        "GET /v1/directory/featured",
+        "POST /v1/directory/featured",
+        "PATCH /v1/directory/featured/:id"
+      ],
+      "migrations": [
+        "1001_directory.sql"
+      ],
+      "sdkPackage": "@platform-sdk/directory",
       "versions": [
         { "major": 1, "status": "current", "sunset": null }
       ],
