@@ -1,0 +1,41 @@
+name: publish-sdk
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'core/sdk/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@platform-sdk'
+      - run: pnpm install --frozen-lockfile
+      - name: Build and publish SDK packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for pkg_dir in core/sdk/*; do
+            if [ -d "$pkg_dir" ] && [ -f "$pkg_dir/package.json" ]; then
+              pkg_name=$(node -p "require('./$pkg_dir/package.json').name")
+              pkg_ver=$(node -p "require('./$pkg_dir/package.json').version")
+              echo "Checking $pkg_name@$pkg_ver..."
+              if npm view "$pkg_name@$pkg_ver" version --registry=https://npm.pkg.github.com > /dev/null 2>&1; then
+                echo "$pkg_name@$pkg_ver already published. Skipping."
+              else
+                echo "Building and publishing $pkg_name@$pkg_ver..."
+                (cd "$pkg_dir" && pnpm run build && pnpm publish --no-git-checks --registry=https://npm.pkg.github.com)
+              fi
+            fi
+          done
