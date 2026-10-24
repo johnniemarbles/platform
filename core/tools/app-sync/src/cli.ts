@@ -69,8 +69,43 @@ async function main() {
     process.exit(0);
   }
 
-  if (command === 'plan' || command === 'sync' || command === 'seed-dev') {
-    console.log(`[app-sync] ${command} will be implemented in Phase B.`);
+  if (command === 'plan') {
+    const { planGenerator } = await import('./generator/generator.ts');
+    const { operations } = planGenerator({
+      manifestPath,
+      platformRoot: platformDir,
+      appDir: flags['app-dir'],
+    });
+
+    console.log(`[app-sync plan] Planned operations for manifest:`);
+    for (const op of operations) {
+      console.log(`  ${op.action.toUpperCase()}: ${op.path}`);
+    }
+    process.exit(0);
+  }
+
+  if (command === 'sync') {
+    const { syncGenerator } = await import('./generator/generator.ts');
+    const result = syncGenerator({
+      manifestPath,
+      platformRoot: platformDir,
+      appDir: flags['app-dir'],
+    });
+
+    console.log(`[app-sync sync] Sync complete:`);
+    console.log(`  Created: ${result.created.length} files`);
+    console.log(`  Updated: ${result.updated.length} files`);
+    console.log(`  Skipped: ${result.skipped.length} files`);
+    process.exit(0);
+  }
+
+  if (command === 'seed-dev') {
+    const { seedDev } = await import('./generator/seed-dev.ts');
+    await seedDev({
+      manifestPath,
+      platformRoot: platformDir,
+      databaseUrl: flags['database-url'],
+    });
     process.exit(0);
   }
 

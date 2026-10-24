@@ -1,0 +1,26 @@
+{
+  "manifestVersion": 1,
+  "appId": "app_demo",
+  "slug": "demo",
+  "displayName": "Demo",
+  "modules": [
+    { "id": "scheduling", "version": "^0.1.0" }
+  ],
+  "entities": [
+    {
+      "name": "serviceMenuItem",
+      "cardinality": "many",
+      "fields": {
+        "name": { "type": "text", "required": true, "maxLength": 120 },
+        "durationMinutes": { "type": "integer", "required": true, "min": 5, "max": 600 },
+        "priceMinor": { "type": "integer", "min": 0 },
+        "tags": { "type": "text[]" }
+      }
+    }
+  ],
+  "identityClients": {
+    "dev": [
+      { "provider": "dev", "poolId": "dev", "clientId": "dev-demo" }
+    ]
+  }
+}

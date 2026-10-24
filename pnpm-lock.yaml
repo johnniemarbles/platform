@@ -27,11 +27,33 @@ importers:
         specifier: ^5.8.3
         version: 5.9.3
 
+  core/app-packs/dentex:
+    dependencies:
+      '@platform-core/route-kit':
+        specifier: workspace:*
+        version: link:../../packages/route-kit
+      '@platform-core/scheduling':
+        specifier: workspace:*
+        version: link:../../packages/scheduling
+      '@platform-hub/contracts':
+        specifier: workspace:*
+        version: link:../../../hub/packages/contracts
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.5
+        version: 22.20.5
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+
   core/apps/platform-api:
     dependencies:
       '@electric-sql/pglite':
         specifier: ^0.3.9
         version: 0.3.16
+      '@platform-app-packs/dentex':
+        specifier: workspace:*
+        version: link:../../app-packs/dentex
       '@platform-core/authorization':
         specifier: workspace:*
         version: link:../../packages/authorization
@@ -53,6 +75,9 @@ importers:
       '@platform-core/party':
         specifier: workspace:*
         version: link:../../packages/party
+      '@platform-core/route-kit':
+        specifier: workspace:*
+        version: link:../../packages/route-kit
       '@platform-core/tenancy':
         specifier: workspace:*
         version: link:../../packages/tenancy
@@ -168,6 +193,22 @@ importers:
 
   core/packages/relationship: {}
 
+  core/packages/route-kit:
+    dependencies:
+      '@platform-core/iam':
+        specifier: workspace:*
+        version: link:../iam
+      '@platform-hub/contracts':
+        specifier: workspace:*
+        version: link:../../../hub/packages/contracts
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.5
+        version: 22.20.5
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+
   core/packages/scheduling: {}
 
   core/packages/tenancy: {}
@@ -180,9 +221,15 @@ importers:
 
   core/tools/app-sync:
     dependencies:
+      '@platform-core/iam-dev':
+        specifier: workspace:*
+        version: link:../../packages/iam-dev
       ajv:
         specifier: ^8.17.1
         version: 8.20.0
+      pg:
+        specifier: ^8.12.0
+        version: 8.23.1
     devDependencies:
       '@types/node':
         specifier: ^22.13.5
