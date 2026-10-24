@@ -79,19 +79,96 @@
       "uiKit": null,
       "notes": "Routes and table are Dentex-shaped today (F5); generalised in Phase C.3."
     },
-    "crm": {
-      "status": "library",
-      "package": "@platform-core/lead",
-      "contractVersion": "0.1.0",
-      "summary": "Lead stages, sources, scoring, person resolution. Accounts/contacts tables from 0044.",
-      "permissions": [],
-      "bundles": {},
-      "routes": [],
+    "crm-advanced": {
+      "status": "available",
+      "package": "@platform-core/crm",
+      "contractVersion": "1.0.0",
+      "summary": "Accounts, contacts, sales pipeline, governed stage transitions, and customer conversion.",
+      "permissions": [
+        "crm.account.read",
+        "crm.account.write",
+        "crm.contact.read",
+        "crm.contact.write",
+        "crm.lead.read",
+        "crm.lead.write",
+        "crm.lead.transition",
+        "crm.lead.convert",
+        "crm.case.read",
+        "crm.case.write",
+        "crm.agreement.read",
+        "crm.agreement.write"
+      ],
+      "bundles": {
+        "staff": {
+          "description": "Standard CRM operations for sales and account representatives.",
+          "permissions": [
+            { "key": "crm.account.read", "since": "1.0.0", "autoGrant": true },
+            { "key": "crm.account.write", "since": "1.0.0", "autoGrant": true },
+            { "key": "crm.contact.read", "since": "1.0.0", "autoGrant": true },
+            { "key": "crm.contact.write", "since": "1.0.0", "autoGrant": true },
+            { "key": "crm.lead.read", "since": "1.0.0", "autoGrant": true },
+            { "key": "crm.lead.write", "since": "1.0.0", "autoGrant": true },
+            { "key": "crm.lead.transition", "since": "1.0.0", "autoGrant": true }
+          ]
+        },
+        "manager": {
+          "description": "Full CRM management including conversion, case creation, and customer agreements.",
+          "permissions": [
+            { "key": "crm.account.read", "since": "1.0.0", "autoGrant": true },
+            { "key": "crm.account.write", "since": "1.0.0", "autoGrant": true },
+            { "key": "crm.contact.read", "since": "1.0.0", "autoGrant": true },
+            { "key": "crm.contact.write", "since": "1.0.0", "autoGrant": true },
+            { "key": "crm.lead.read", "since": "1.0.0", "autoGrant": true },
+            { "key": "crm.lead.write", "since": "1.0.0", "autoGrant": true },
+            { "key": "crm.lead.transition", "since": "1.0.0", "autoGrant": true },
+            { "key": "crm.lead.convert", "since": "1.0.0", "autoGrant": true },
+            { "key": "crm.case.read", "since": "1.0.0", "autoGrant": true },
+            { "key": "crm.case.write", "since": "1.0.0", "autoGrant": true },
+            { "key": "crm.agreement.read", "since": "1.0.0", "autoGrant": true },
+            { "key": "crm.agreement.write", "since": "1.0.0", "autoGrant": true }
+          ]
+        }
+      },
+      "routes": [
+        "GET /v1/crm/accounts",
+        "POST /v1/crm/accounts",
+        "GET /v1/crm/accounts/:id",
+        "PATCH /v1/crm/accounts/:id",
+        "GET /v1/crm/contacts",
+        "POST /v1/crm/contacts",
+        "GET /v1/crm/contacts/:id",
+        "PATCH /v1/crm/contacts/:id",
+        "GET /v1/crm/leads",
+        "POST /v1/crm/leads",
+        "GET /v1/crm/leads/:id",
+        "PATCH /v1/crm/leads/:id",
+        "POST /v1/crm/leads/:id/transition",
+        "POST /v1/crm/leads/:id/convert",
+        "GET /v1/crm/cases",
+        "POST /v1/crm/cases",
+        "GET /v1/crm/cases/:id",
+        "PATCH /v1/crm/cases/:id",
+        "GET /v1/crm/agreements",
+        "POST /v1/crm/agreements",
+        "GET /v1/crm/agreements/:id",
+        "PATCH /v1/crm/agreements/:id"
+      ],
       "migrations": [
         "0013_platform_organizations.sql",
-        "0044_crm_party.sql"
+        "0044_crm_party.sql",
+        "0045_crm_leads.sql",
+        "0046_crm_cases.sql",
+        "0047_crm_agreements.sql",
+        "0057_crm_case_attributes.sql",
+        "0058_crm_case_attributes_schema_version.sql",
+        "0061_crm_case_industry_pack_provenance.sql",
+        "0123_crm_lead_organization_scope.sql",
+        "0145_crm_lead_stage_governance.sql",
+        "0156_crm_lead_contact_fields.sql",
+        "0157_crm_lead_geo_enquiry_fields.sql",
+        "0158_crm_contacts_geo.sql"
       ],
-      "sdkPackage": null,
+      "sdkPackage": "@platform-sdk/crm",
       "versions": [
         { "major": 1, "status": "current", "sunset": null }
       ],
@@ -143,21 +220,6 @@
           ]
         }
       },
-      "routes": [],
-      "migrations": [],
-      "sdkPackage": null,
-      "versions": [
-        { "major": 1, "status": "current", "sunset": null }
-      ],
-      "uiKit": null
-    },
-    "crm-advanced": {
-      "status": "planned",
-      "package": "@platform-core/crm",
-      "contractVersion": "0.0.0",
-      "summary": "Phase C.1",
-      "permissions": [],
-      "bundles": {},
       "routes": [],
       "migrations": [],
       "sdkPackage": null,

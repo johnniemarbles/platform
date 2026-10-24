@@ -187,7 +187,7 @@ test('loadRegistry successfully parses and validates core/registry/modules.json'
   const registry = loadRegistry(platformRoot);
   assert.equal(registry.registryVersion, 1);
   assert.ok(registry.modules['scheduling']);
-  assert.ok(registry.modules['crm']);
+  assert.ok(registry.modules['crm-advanced']);
   assert.ok(registry.modules['gtm']);
   assert.ok(registry.modules['learning']);
   assert.ok(registry.modules['communication']);

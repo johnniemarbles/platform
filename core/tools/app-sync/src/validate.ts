@@ -44,10 +44,11 @@ export function validateManifest(manifest: AppManifest, registry: ModuleRegistry
 
     const regMod = registry.modules[mod.id];
     if (!regMod) {
+      const hint = mod.id === 'crm' ? ' (did you mean crm-advanced?)' : '';
       problems.push({
         level: 'error',
         path: `modules[${i}].id`,
-        message: 'unknown module',
+        message: `unknown module${hint}`,
       });
       continue;
     }
