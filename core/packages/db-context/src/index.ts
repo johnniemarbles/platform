@@ -22,6 +22,7 @@ export interface RequestContext {
   readonly hierarchyScope: string;
   readonly credentialClass: CredentialClass;
   readonly grantId?: string;
+  readonly organizationId?: string | null;
 }
 
 export interface SetContextSql {
@@ -30,6 +31,14 @@ export interface SetContextSql {
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function extractOrganizationId(hierarchyScope: string): string | null {
+  if (hierarchyScope.startsWith('org/')) {
+    const orgId = hierarchyScope.slice(4).trim();
+    return UUID_RE.test(orgId) ? orgId : null;
+  }
+  return null;
+}
 
 /** Shape-checks a context against the token shape before it ever hits the server. */
 export function assertServerContext(ctx: RequestContext): void {
@@ -42,11 +51,28 @@ export function assertServerContext(ctx: RequestContext): void {
   if (ctx.credentialClass !== 'platform-operational' && !(ctx.grantId && UUID_RE.test(ctx.grantId))) {
     throw new TypeError('grantId must be a UUID when credentialClass is tenant-byok or platform-provisioned');
   }
+  if (ctx.organizationId && !UUID_RE.test(ctx.organizationId)) {
+    throw new TypeError('organizationId must be a UUID when provided');
+  }
 }
 
 /** The parameterised call the hub makes per request. */
 export function setRequestContextSql(ctx: RequestContext): SetContextSql {
   assertServerContext(ctx);
+  const orgId = ctx.organizationId ?? extractOrganizationId(ctx.hierarchyScope);
+  if (orgId !== null && orgId !== undefined) {
+    return {
+      sql: 'SELECT platform.set_request_context($1, $2, $3, $4, $5, $6)',
+      params: [
+        ctx.tenantId,
+        ctx.appId,
+        ctx.hierarchyScope,
+        ctx.credentialClass,
+        ctx.grantId ?? null,
+        orgId,
+      ],
+    };
+  }
   return {
     sql: 'SELECT platform.set_request_context($1, $2, $3, $4, $5)',
     params: [

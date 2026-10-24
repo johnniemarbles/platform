@@ -33,3 +33,28 @@ test('a tenant-byok context without a grant is refused', () => {
 test('an unknown credentialClass is refused', () => {
   assert.throws(() => assertServerContext({ tenantId: TENANT, appId: 'a', hierarchyScope: 'h', credentialClass: 'what' as 'platform-operational' }));
 });
+
+test('hierarchyScope with org/<uuid> derives organizationId and produces 6-arg set_request_context call', () => {
+  const ORG = '33333333-3333-3333-3333-333333333333';
+  const { sql, params } = setRequestContextSql({
+    tenantId: TENANT, appId: 'app_dentex', hierarchyScope: `org/${ORG}`,
+    credentialClass: 'platform-operational',
+  });
+  assert.equal(sql, 'SELECT platform.set_request_context($1, $2, $3, $4, $5, $6)');
+  assert.deepEqual(params, [TENANT, 'app_dentex', `org/${ORG}`, 'platform-operational', null, ORG]);
+});
+
+test('explicit valid organizationId produces 6-arg call while invalid UUID is rejected', () => {
+  const ORG = '33333333-3333-3333-3333-333333333333';
+  const { sql, params } = setRequestContextSql({
+    tenantId: TENANT, appId: 'app_dentex', hierarchyScope: 'tenant/all',
+    credentialClass: 'platform-operational', organizationId: ORG,
+  });
+  assert.equal(sql, 'SELECT platform.set_request_context($1, $2, $3, $4, $5, $6)');
+  assert.deepEqual(params, [TENANT, 'app_dentex', 'tenant/all', 'platform-operational', null, ORG]);
+
+  assert.throws(() => assertServerContext({
+    tenantId: TENANT, appId: 'app_dentex', hierarchyScope: 'tenant/all',
+    credentialClass: 'platform-operational', organizationId: 'not-a-uuid',
+  }));
+});

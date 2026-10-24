@@ -38,7 +38,8 @@ async function setupTestDb() {
       p_app_id text,
       p_hierarchy_scope text,
       p_credential_class text,
-      p_grant_id uuid
+      p_grant_id uuid,
+      p_organization_id uuid DEFAULT NULL
     ) RETURNS void LANGUAGE plpgsql AS $$
     BEGIN
       PERFORM set_config('app.tenant_id', p_tenant_id::text, true);
@@ -46,6 +47,7 @@ async function setupTestDb() {
       PERFORM set_config('app.hierarchy_scope', p_hierarchy_scope, true);
       PERFORM set_config('app.credential_class', p_credential_class, true);
       PERFORM set_config('app.grant_id', COALESCE(p_grant_id::text, ''), true);
+      PERFORM set_config('app.organization_id', COALESCE(p_organization_id::text, ''), true);
     END $$;
 
     CREATE TABLE IF NOT EXISTS platform.apps (

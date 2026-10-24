@@ -1,4 +1,4 @@
-import type { CredentialClass } from '@platform-core/db-context';
+import { type CredentialClass, extractOrganizationId } from '@platform-core/db-context';
 
 export interface QueryResult<Row> { readonly rows: readonly Row[]; }
 export interface DbClient {
@@ -14,15 +14,24 @@ export interface RequestContext {
   readonly hierarchyScope: string;
   readonly credentialClass: CredentialClass;
   readonly grantId?: string;
+  readonly organizationId?: string | null;
 }
 
 export async function withRequestContext<T>(db: Db, ctx: RequestContext, fn: (tx: Transaction) => Promise<T>): Promise<T> {
   const tx = await db.begin();
   try {
-    await tx.query(
-      'SELECT platform.set_request_context($1, $2, $3, $4, $5)',
-      [ctx.tenantId, ctx.appId, ctx.hierarchyScope, ctx.credentialClass, ctx.grantId ?? null],
-    );
+    const orgId = ctx.organizationId ?? extractOrganizationId(ctx.hierarchyScope);
+    if (orgId) {
+      await tx.query(
+        'SELECT platform.set_request_context($1, $2, $3, $4, $5, $6)',
+        [ctx.tenantId, ctx.appId, ctx.hierarchyScope, ctx.credentialClass, ctx.grantId ?? null, orgId],
+      );
+    } else {
+      await tx.query(
+        'SELECT platform.set_request_context($1, $2, $3, $4, $5)',
+        [ctx.tenantId, ctx.appId, ctx.hierarchyScope, ctx.credentialClass, ctx.grantId ?? null],
+      );
+    }
     const result = await fn(tx);
     await tx.commit();
     return result;
