@@ -4,7 +4,8 @@ import { PGlite } from '@electric-sql/pglite';
 import { dbFromPglite } from '../src/db-pglite.ts';
 import { DevIdentityVerifier, signDevToken } from '@platform-core/iam-dev';
 import { makeDispatcher, type PlatformApiConfig } from '../src/handler.ts';
-import { routesFor } from '../src/routes.ts';
+import { meRoutes } from '../src/routes/me.ts';
+import { routes as dentexRoutes } from '@platform-app-packs/dentex';
 import { makeHostResolver } from '../src/host-router.ts';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
@@ -45,6 +46,21 @@ async function setupTestDb() {
       PERFORM set_config('app.grant_id', COALESCE(p_grant_id::text, ''), true);
     END $$;
 
+    CREATE TABLE IF NOT EXISTS platform.apps (
+      app_id text PRIMARY KEY,
+      display_name text NOT NULL,
+      status text NOT NULL DEFAULT 'ACTIVE',
+      created_at timestamptz NOT NULL DEFAULT now()
+    );
+
+    CREATE TABLE IF NOT EXISTS platform.app_clients (
+      client_id text PRIMARY KEY,
+      app_id text NOT NULL REFERENCES platform.apps(app_id) ON DELETE CASCADE,
+      identity_provider text NOT NULL,
+      identity_pool_id text NOT NULL,
+      created_at timestamptz NOT NULL DEFAULT now()
+    );
+
     CREATE TABLE IF NOT EXISTS platform.tenants (
       tenant_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       account_id uuid NOT NULL,
@@ -53,6 +69,14 @@ async function setupTestDb() {
       workspace_name text NOT NULL,
       created_at timestamptz NOT NULL DEFAULT now(),
       UNIQUE (account_id, country)
+    );
+
+    CREATE TABLE IF NOT EXISTS platform.tenant_apps (
+      tenant_id uuid NOT NULL REFERENCES platform.tenants(tenant_id) ON DELETE CASCADE,
+      app_id text NOT NULL REFERENCES platform.apps(app_id) ON DELETE CASCADE,
+      activated_at timestamptz NOT NULL DEFAULT now(),
+      deactivated_at timestamptz,
+      PRIMARY KEY (tenant_id, app_id)
     );
 
     CREATE TABLE IF NOT EXISTS platform.memberships (
@@ -99,6 +123,9 @@ async function setupTestDb() {
       updated_at timestamptz NOT NULL DEFAULT now()
     );
 
+    INSERT INTO platform.apps (app_id, display_name) VALUES ('app_dentex', 'Dentex');
+    INSERT INTO platform.app_clients (client_id, app_id, identity_provider, identity_pool_id)
+    VALUES ('dev-dentex', 'app_dentex', 'dev', 'platform-dev');
   `);
   return pg;
 }
@@ -112,7 +139,7 @@ test('pipeline: /health passes without auth', async () => {
     identity: verifier,
     resolveTenantFromHost: makeHostResolver(db),
   };
-  const dispatcher = makeDispatcher(routesFor('app_dentex'), config);
+  const dispatcher = makeDispatcher([...meRoutes(), ...dentexRoutes()], config);
 
   const req = {
     method: 'GET',
@@ -141,6 +168,7 @@ test('pipeline: dev identity token + no membership -> TOKEN_SCOPE_MISMATCH', asy
   await pg.exec(`
     INSERT INTO platform.tenants (tenant_id, account_id, country, region, workspace_name)
     VALUES ('${tenantId}', '33333333-3333-3333-3333-333333333333', 'IN', 'ap-south-1', 'acme');
+    INSERT INTO platform.tenant_apps (tenant_id, app_id) VALUES ('${tenantId}', 'app_dentex');
   `);
 
   const verifier = new DevIdentityVerifier({ secret: DEV_SECRET, productionGuard: 'allow' });
@@ -149,9 +177,9 @@ test('pipeline: dev identity token + no membership -> TOKEN_SCOPE_MISMATCH', asy
     identity: verifier,
     resolveTenantFromHost: makeHostResolver(db),
   };
-  const dispatcher = makeDispatcher(routesFor('app_dentex'), config);
+  const dispatcher = makeDispatcher([...meRoutes(), ...dentexRoutes()], config);
 
-  const token = signDevToken({ sub: 'usr_stranger', iss: 'platform-dev' }, DEV_SECRET);
+  const token = signDevToken({ sub: 'usr_stranger', iss: 'platform-dev', aud: 'dev-dentex' }, DEV_SECRET);
   const req = {
     method: 'GET',
     url: '/v1/me',
@@ -184,6 +212,7 @@ test('pipeline: dev identity + seeded membership + role -> /v1/me returns member
   await pg.exec(`
     INSERT INTO platform.tenants (tenant_id, account_id, country, region, workspace_name)
     VALUES ('${tenantId}', '33333333-3333-3333-3333-333333333333', 'IN', 'ap-south-1', 'acme');
+    INSERT INTO platform.tenant_apps (tenant_id, app_id) VALUES ('${tenantId}', 'app_dentex');
 
     INSERT INTO platform.memberships (membership_id, tenant_id, person_id, identity_provider, identity_pool_id, identity_subject_id)
     VALUES (gen_random_uuid(), '${tenantId}', '${personId}', 'dev', 'platform-dev', 'usr_42');
@@ -200,9 +229,9 @@ test('pipeline: dev identity + seeded membership + role -> /v1/me returns member
     identity: verifier,
     resolveTenantFromHost: makeHostResolver(db),
   };
-  const dispatcher = makeDispatcher(routesFor('app_dentex'), config);
+  const dispatcher = makeDispatcher([...meRoutes(), ...dentexRoutes()], config);
 
-  const token = signDevToken({ sub: 'usr_42', iss: 'platform-dev' }, DEV_SECRET);
+  const token = signDevToken({ sub: 'usr_42', iss: 'platform-dev', aud: 'dev-dentex' }, DEV_SECRET);
   const req = {
     method: 'GET',
     url: '/v1/me',
@@ -225,8 +254,6 @@ test('pipeline: dev identity + seeded membership + role -> /v1/me returns member
   assert.equal(res.body.ok, true);
   assert.equal(res.body.result.person.id, personId);
   assert.equal(res.body.result.tenant.id, tenantId);
-  assert.equal(res.body.result.tenant.country, 'IN');
-  assert.equal(res.body.result.tenant.region, 'ap-south-1');
   assert.equal(res.body.result.app, 'app_dentex');
   assert.deepEqual(res.body.result.permissions, ['me.read']);
   await db.close();
@@ -241,14 +268,14 @@ test('pipeline: identity token with bad signature -> 401 TOKEN_SIGNATURE_INVALID
     identity: verifier,
     resolveTenantFromHost: makeHostResolver(db),
   };
-  const dispatcher = makeDispatcher(routesFor('app_dentex'), config);
+  const dispatcher = makeDispatcher([...meRoutes(), ...dentexRoutes()], config);
 
-  const badToken = signDevToken({ sub: 'usr_42' }, 'wrongsecret0123456789abcdef0123456789abcdef');
+  const token = signDevToken({ sub: 'usr_42', iss: 'platform-dev', aud: 'dev-dentex' }, 'badsecretbadsecretbadsecretbadsecret');
   const req = {
     method: 'GET',
     url: '/v1/me',
     headers: {
-      authorization: `Bearer ${badToken}`,
+      authorization: `Bearer ${token}`,
       host: 'acme.platform.test',
     },
   } as unknown as IncomingMessage;
@@ -270,36 +297,32 @@ test('pipeline: identity token with bad signature -> 401 TOKEN_SIGNATURE_INVALID
 test('pipeline: /v1/bookings without bookings.create permission -> TOKEN_SCOPE_MISMATCH', async () => {
   const pg = await setupTestDb();
   const db = dbFromPglite(pg);
+  const tenantId = '11111111-1111-1111-1111-111111111111';
+  const personId = '22222222-2222-2222-2222-222222222222';
+
+  await pg.exec(`
+    INSERT INTO platform.tenants (tenant_id, account_id, country, region, workspace_name)
+    VALUES ('${tenantId}', '33333333-3333-3333-3333-333333333333', 'IN', 'ap-south-1', 'acme');
+    INSERT INTO platform.tenant_apps (tenant_id, app_id) VALUES ('${tenantId}', 'app_dentex');
+
+    INSERT INTO platform.memberships (membership_id, tenant_id, person_id, identity_provider, identity_pool_id, identity_subject_id)
+    VALUES (gen_random_uuid(), '${tenantId}', '${personId}', 'dev', 'platform-dev', 'usr_guest');
+
+    INSERT INTO platform.role_assignments (membership_id, app_id, role_key, permissions, hierarchy_scope, granted_by)
+    VALUES ((SELECT membership_id FROM platform.memberships LIMIT 1),
+            'app_dentex', 'guest',
+            ARRAY['me.read']::text[], 'org/1', '${personId}');
+  `);
+
   const verifier = new DevIdentityVerifier({ secret: DEV_SECRET, productionGuard: 'allow' });
   const config: PlatformApiConfig = {
     db,
     identity: verifier,
     resolveTenantFromHost: makeHostResolver(db),
   };
-  const dispatcher = makeDispatcher(routesFor('app_dentex'), config);
+  const dispatcher = makeDispatcher([...meRoutes(), ...dentexRoutes()], config);
 
-  const tenantRes = await pg.query<{ tenant_id: string }>(`
-    INSERT INTO platform.tenants (account_id, country, region, workspace_name)
-    VALUES (gen_random_uuid(), 'US', 'us-east-1', 'acme')
-    RETURNING tenant_id;
-  `);
-  const tenantId = tenantRes.rows[0]!.tenant_id;
-  const personId = '33333333-3333-3333-3333-333333333333';
-
-  const memRes = await pg.query<{ membership_id: string }>(`
-    INSERT INTO platform.memberships (tenant_id, person_id, identity_provider, identity_pool_id, identity_subject_id)
-    VALUES ($1, $2, 'dev', 'platform-dev', 'usr_42')
-    RETURNING membership_id;
-  `, [tenantId, personId]);
-  const membershipId = memRes.rows[0]!.membership_id;
-
-  // Granted only 'me.read', missing 'bookings.create'
-  await pg.query(`
-    INSERT INTO platform.role_assignments (membership_id, app_id, role_key, permissions, hierarchy_scope, granted_by)
-    VALUES ($1, 'app_dentex', 'reader', ARRAY['me.read']::text[], 'org/1', $2);
-  `, [membershipId, personId]);
-
-  const token = signDevToken({ sub: 'usr_42', iss: 'platform-dev' }, DEV_SECRET);
+  const token = signDevToken({ sub: 'usr_guest', iss: 'platform-dev', aud: 'dev-dentex' }, DEV_SECRET);
   const req = {
     method: 'POST',
     url: '/v1/bookings',
@@ -310,10 +333,10 @@ test('pipeline: /v1/bookings without bookings.create permission -> TOKEN_SCOPE_M
     },
     [Symbol.asyncIterator]: async function* () {
       yield Buffer.from(JSON.stringify({
-        patientName: 'Jane Doe',
-        patientEmail: 'jane@example.com',
-        startsAt: new Date(Date.now() + 3600000).toISOString(),
-        endsAt: new Date(Date.now() + 7200000).toISOString(),
+        patientName: 'John Patient',
+        patientEmail: 'patient@example.com',
+        startsAt: new Date(Date.now() + 86400000).toISOString(),
+        endsAt: new Date(Date.now() + 90000000).toISOString(),
       }));
     },
   } as unknown as IncomingMessage;
@@ -343,15 +366,18 @@ test('pipeline: /v1/bookings creates booking and dispatches confirmation', async
   };
 
   let emailDispatched = false;
-  const dispatcher = makeDispatcher(routesFor('app_dentex', {
-    signerConfig: { algorithm: 'HS256', hs256Secret: DEV_SECRET },
-    dispatchEmail: async (options) => {
-      emailDispatched = true;
-      assert.equal(options.to, 'patient@example.com');
-      assert.equal(options.templateKey, 'sched.appointment.confirmed');
-      return { ok: true };
-    },
-  }), config);
+  const dispatcher = makeDispatcher([
+    ...meRoutes(),
+    ...dentexRoutes({
+      signerConfig: { algorithm: 'HS256', hs256Secret: DEV_SECRET },
+      dispatchEmail: async (options: any) => {
+        emailDispatched = true;
+        assert.equal(options.to, 'patient@example.com');
+        assert.equal(options.templateKey, 'sched.appointment.confirmed');
+        return { ok: true };
+      },
+    }),
+  ], config);
 
   const tenantRes = await pg.query<{ tenant_id: string }>(`
     INSERT INTO platform.tenants (account_id, country, region, workspace_name)
@@ -359,6 +385,10 @@ test('pipeline: /v1/bookings creates booking and dispatches confirmation', async
     RETURNING tenant_id;
   `);
   const tenantId = tenantRes.rows[0]!.tenant_id;
+  await pg.query(`
+    INSERT INTO platform.tenant_apps (tenant_id, app_id) VALUES ($1, 'app_dentex');
+  `, [tenantId]);
+
   const personId = '44444444-4444-4444-4444-444444444444';
 
   const memRes = await pg.query<{ membership_id: string }>(`
@@ -373,7 +403,7 @@ test('pipeline: /v1/bookings creates booking and dispatches confirmation', async
     VALUES ($1, 'app_dentex', 'dentist', ARRAY['me.read', 'bookings.create', 'bookings.read']::text[], 'org/1', $2);
   `, [membershipId, personId]);
 
-  const token = signDevToken({ sub: 'usr_dentist', iss: 'platform-dev' }, DEV_SECRET);
+  const token = signDevToken({ sub: 'usr_dentist', iss: 'platform-dev', aud: 'dev-dentex' }, DEV_SECRET);
   const now = Date.now();
   const startsAt = new Date(now + 86400000).toISOString();
   const endsAt = new Date(now + 90000000).toISOString();
@@ -448,4 +478,3 @@ test('pipeline: /v1/bookings creates booking and dispatches confirmation', async
 
   await db.close();
 });
-

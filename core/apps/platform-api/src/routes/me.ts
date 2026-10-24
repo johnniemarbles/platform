@@ -1,4 +1,4 @@
-import type { HandlerContext, RouteDefinition } from '../handler.ts';
+import type { HandlerContext, RouteDefinition } from '@platform-core/route-kit';
 
 async function me({ membership, identity }: HandlerContext): Promise<unknown> {
   return {
@@ -11,6 +11,6 @@ async function me({ membership, identity }: HandlerContext): Promise<unknown> {
   };
 }
 
-export const meRoutes = (appId: string): readonly RouteDefinition[] => [
-  { method: 'GET', path: '/v1/me', appId, requires: ['me.read'], handler: me },
+export const meRoutes = (): readonly RouteDefinition[] => [
+  { method: 'GET', path: '/v1/me', appId: '*', requires: ['me.read'], handler: me },
 ];
