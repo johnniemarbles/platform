@@ -1,0 +1,29 @@
+{
+  "name": "@platform-core/platform-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --no-warnings --test test/*.test.ts",
+    "dev": "node --experimental-strip-types --watch src/server.ts",
+    "migrate": "node --experimental-strip-types scripts/migrate.ts",
+    "start": "node --experimental-strip-types scripts/migrate.ts && node --experimental-strip-types src/server.ts"
+  },
+  "dependencies": {
+    "@platform-core/iam": "workspace:*",
+    "@platform-core/iam-dev": "workspace:*",
+    "@platform-core/db-context": "workspace:*",
+    "@platform-core/tenancy": "workspace:*",
+    "@platform-core/tenancy-persistence": "workspace:*",
+    "@platform-core/authorization": "workspace:*",
+    "@platform-core/authorization-persistence": "workspace:*",
+    "@platform-core/party": "workspace:*",
+    "@platform-core/entity": "workspace:*",
+    "pg": "^8.12.0",
+    "@electric-sql/pglite": "^0.3.9"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.6"
+  }
+}

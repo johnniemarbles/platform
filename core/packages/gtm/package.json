@@ -1,0 +1,14 @@
+{
+  "name": "@platform-core/gtm",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./enrollment": "./src/enrollment.ts"
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --no-warnings --test test/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  }
+}

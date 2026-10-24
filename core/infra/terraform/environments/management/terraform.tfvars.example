@@ -1,0 +1,4 @@
+us_prod_account_id         = "111111111111"
+ca_prod_account_id         = "222222222222"
+staging_account_id         = "333333333333"
+shared_services_account_id = "444444444444"

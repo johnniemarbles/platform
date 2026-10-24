@@ -1,0 +1,15 @@
+{
+  "name": "@platform-core/authorization-persistence",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@platform-core/authorization": "workspace:*",
+    "@platform-core/tenancy": "workspace:*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "echo '(no tests)'"
+  }
+}
