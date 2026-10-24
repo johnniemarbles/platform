@@ -6,4 +6,5 @@ packages:
   - 'core/apps/*'
   - 'core/tools/*'
   - 'core/app-packs/*'
+  - 'core/sdk/*'
   - 'core/ui/*'

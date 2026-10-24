@@ -61,10 +61,16 @@
       "mayDependOnZones": ["core-foundation", "core-modules"]
     },
     {
+      "name": "core-sdk",
+      "pathPrefix": "core/sdk/",
+      "mayDependOnZones": ["core-sdk"],
+      "notes": "Typed clients for platform-api routes. No fetch(): requests go through an injected Transport. No runtime imports of core packages."
+    },
+    {
       "name": "core-ui",
       "pathPrefix": "core/ui/",
-      "mayDependOnZones": ["core-ui"],
-      "notes": "Presentation only. No fetch(), no provider SDK, no module runtime imports; data comes in through props/clients."
+      "mayDependOnZones": ["core-ui", "core-sdk"],
+      "notes": "Presentation only. No fetch(), no provider SDK, no module runtime imports; data comes in through props/clients. Types-only from core-sdk."
     }
   ],
   "sdkGroups": [

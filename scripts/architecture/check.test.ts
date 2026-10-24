@@ -64,7 +64,12 @@ const monorepoConfig: ArchitectureConfig = {
     {
       name: 'core-ui',
       pathPrefix: 'core/ui/',
-      mayDependOnZones: ['core-ui'],
+      mayDependOnZones: ['core-ui', 'core-sdk'],
+    },
+    {
+      name: 'core-sdk',
+      pathPrefix: 'core/sdk/',
+      mayDependOnZones: ['core-sdk'],
     },
   ],
   sdkGroups: [
@@ -207,6 +212,21 @@ test('role-name and user-ID checks are flagged; permission checks and tests are 
   try {
     const lines = check(root, monorepoConfig).filter((v) => v.rule === 'permission-check').map((v) => v.line);
     assert.deepEqual(lines, [1, 2, 3, 4, 5]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('core-ui may import types only from core-sdk; runtime import fails', () => {
+  const root = repo({
+    'turbo.json': {},
+    'core/ui/components/package.json': pkg('@platform-ui/components', { '@platform-sdk/scheduling': 'workspace:*' }),
+    'core/sdk/scheduling/package.json': pkg('@platform-sdk/scheduling'),
+    'core/ui/components/src/TypeOnly.tsx': `import type { Booking } from '@platform-sdk/scheduling'; export type B = Booking;\n`,
+    'core/ui/components/src/Runtime.tsx': `import { schedulingClient } from '@platform-sdk/scheduling'; export const c = schedulingClient;\n`,
+  });
+  try {
+    assert.deepEqual(rules(root, monorepoConfig), ['ui-purity:core/ui/components/src/Runtime.tsx']);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

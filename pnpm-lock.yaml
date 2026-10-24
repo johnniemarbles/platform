@@ -32,9 +32,6 @@ importers:
       '@platform-core/route-kit':
         specifier: workspace:*
         version: link:../../packages/route-kit
-      '@platform-core/scheduling':
-        specifier: workspace:*
-        version: link:../../packages/scheduling
       '@platform-hub/contracts':
         specifier: workspace:*
         version: link:../../../hub/packages/contracts
@@ -54,6 +51,9 @@ importers:
       '@platform-app-packs/dentex':
         specifier: workspace:*
         version: link:../../app-packs/dentex
+      '@platform-core/audit':
+        specifier: workspace:*
+        version: link:../../packages/audit
       '@platform-core/authorization':
         specifier: workspace:*
         version: link:../../packages/authorization
@@ -95,7 +95,11 @@ importers:
         specifier: ^8.11.6
         version: 8.23.1
 
-  core/packages/audit: {}
+  core/packages/audit:
+    dependencies:
+      '@platform-core/authorization':
+        specifier: workspace:*
+        version: link:../authorization
 
   core/packages/authorization:
     dependencies:
@@ -218,6 +222,41 @@ importers:
       '@platform-core/tenancy':
         specifier: workspace:*
         version: link:../tenancy
+
+  core/sdk/platform:
+    dependencies:
+      '@platform-sdk/transport':
+        specifier: workspace:*
+        version: link:../transport
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.5
+        version: 22.20.5
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+
+  core/sdk/scheduling:
+    dependencies:
+      '@platform-sdk/transport':
+        specifier: workspace:*
+        version: link:../transport
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.5
+        version: 22.20.5
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+
+  core/sdk/transport:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.5
+        version: 22.20.5
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
 
   core/tools/app-sync:
     dependencies:

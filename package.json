@@ -13,8 +13,10 @@
     "db:dryrun": "node --experimental-strip-types --no-warnings --test tools/db/dryrun.test.ts",
     "check:architecture": "node --experimental-strip-types --no-warnings scripts/architecture/check.ts",
     "test:architecture": "node --experimental-strip-types --no-warnings --test scripts/architecture/check.test.ts",
+    "check:module-change": "node --experimental-strip-types --no-warnings scripts/registry/check-module-change.ts",
+    "test:module-change": "node --experimental-strip-types --no-warnings --test scripts/registry/check-module-change.test.ts",
     "typecheck:scripts": "tsc -p tsconfig.json",
-    "check": "pnpm run check:architecture && pnpm run test:architecture && pnpm run typecheck:scripts && pnpm run typecheck && pnpm run db:dryrun && pnpm run test"
+    "check": "pnpm run check:architecture && pnpm run test:architecture && pnpm run test:module-change && pnpm run typecheck:scripts && pnpm run typecheck && pnpm run db:dryrun && pnpm run test"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.3.16",

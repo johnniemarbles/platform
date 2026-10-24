@@ -272,7 +272,7 @@ export function check(root: string, config: ArchitectureConfig = loadConfig(root
       }
 
       if (fileZone && fileZone.name === 'core-ui') {
-        if (spec.startsWith('@platform-core/') && !TYPE_ONLY_IMPORT_RE.test(fullMatch)) {
+        if ((spec.startsWith('@platform-core/') || spec.startsWith('@platform-sdk/')) && !TYPE_ONLY_IMPORT_RE.test(fullMatch)) {
           violations.push({ rule: 'ui-purity', file: rel, line, message: `core-ui cannot import runtime package "${spec}"; only type imports are allowed` });
         }
       }
