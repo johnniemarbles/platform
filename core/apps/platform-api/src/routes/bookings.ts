@@ -1,7 +1,7 @@
 import type { IncomingMessage } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import type { HandlerContext, RouteDefinition } from '../handler.ts';
-import { refusal } from '../contracts.ts';
+import { refusal } from '@platform-hub/contracts';
 import { mintScopeToken, signerFromEnv, type ScopeTokenSignerConfig } from '../scope-token.ts';
 
 export interface CreateBookingBody {
@@ -38,9 +38,9 @@ async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> 
 }
 
 export interface BookingsRouteOptions {
-  readonly signerConfig?: ScopeTokenSignerConfig;
-  readonly hubBaseUrl?: string;
-  readonly dispatchEmail?: (options: {
+  readonly signerConfig?: ScopeTokenSignerConfig | undefined;
+  readonly hubBaseUrl?: string | undefined;
+  readonly dispatchEmail?: ((options: {
     hubBaseUrl: string;
     scopeToken: string;
     to: string;
@@ -48,7 +48,7 @@ export interface BookingsRouteOptions {
     parameters: Record<string, unknown>;
     idempotencyKey: string;
     traceId: string;
-  }) => Promise<{ ok: boolean }>;
+  }) => Promise<{ ok: boolean }>) | undefined;
 }
 
 export function bookingsRoutes(appId: string, options: BookingsRouteOptions = {}): readonly RouteDefinition[] {

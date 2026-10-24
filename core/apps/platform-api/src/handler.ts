@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { IdentityVerifier, VerifiedIdentity } from '@platform-core/iam';
-import { refusal, type Refusal, type RefusalCode } from './contracts.ts';
+import { refusal, type Refusal, type RefusalCode } from '@platform-hub/contracts';
 import { resolveMembership, type ResolvedMembership } from './membership.ts';
 import { withRequestContext, type Db, type Transaction } from './db.ts';
 

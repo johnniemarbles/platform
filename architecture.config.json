@@ -1,0 +1,134 @@
+{
+  "$comment": "Layer rules from Platform Architecture Plan V3.1, enforced per zone. Changes need platform-team review (CODEOWNERS).",
+  "zones": [
+    {
+      "name": "hub",
+      "pathPrefix": "hub/",
+      "mayDependOnZones": ["hub"],
+      "sdkGroupsAllowed": ["provider"],
+      "notes": "Only zone allowed to import provider SDKs. Never depends on core, app-packs, ui."
+    },
+    {
+      "name": "core-foundation",
+      "pathPrefix": "core/packages/",
+      "packages": [
+        "@platform-core/audit",
+        "@platform-core/authorization",
+        "@platform-core/authorization-persistence",
+        "@platform-core/business-config",
+        "@platform-core/db-context",
+        "@platform-core/domain-events",
+        "@platform-core/entity",
+        "@platform-core/iam",
+        "@platform-core/iam-dev",
+        "@platform-core/iam-cognito",
+        "@platform-core/observability",
+        "@platform-core/party",
+        "@platform-core/relationship",
+        "@platform-core/tenancy",
+        "@platform-core/tenancy-persistence",
+        "@platform-core/route-kit"
+      ],
+      "mayDependOnZones": ["core-foundation"],
+      "allowedCrossZonePackages": ["@platform-hub/contracts"]
+    },
+    {
+      "name": "core-modules",
+      "pathPrefix": "core/packages/",
+      "packagesNotIn": "core-foundation",
+      "mayDependOnZones": ["core-foundation"],
+      "allowedCrossZonePackages": ["@platform-hub/contracts"],
+      "notes": "Plan rule 2: a module depends only on foundation/core-records/contracts, never on another module."
+    },
+    {
+      "name": "core-app-packs",
+      "pathPrefix": "core/app-packs/",
+      "mayDependOnZones": ["core-foundation", "core-modules"],
+      "allowedCrossZonePackages": ["@platform-hub/contracts"],
+      "forbidDependingOnSameZone": true,
+      "notes": "An app pack may use modules' public exports; never another app pack."
+    },
+    {
+      "name": "core-apps",
+      "pathPrefix": "core/apps/",
+      "mayDependOnZones": ["core-foundation", "core-modules", "core-app-packs"],
+      "allowedCrossZonePackages": ["@platform-hub/contracts"],
+      "notes": "platform-api. Calls the hub over HTTP only; contracts is the one hub package it may import."
+    },
+    {
+      "name": "core-tools",
+      "pathPrefix": "core/tools/",
+      "mayDependOnZones": ["core-foundation", "core-modules"]
+    },
+    {
+      "name": "core-ui",
+      "pathPrefix": "core/ui/",
+      "mayDependOnZones": ["core-ui"],
+      "notes": "Presentation only. No fetch(), no provider SDK, no module runtime imports; data comes in through props/clients."
+    }
+  ],
+  "sdkGroups": [
+    {
+      "name": "provider",
+      "packages": [
+        "stripe",
+        "razorpay",
+        "twilio",
+        "@twilio/",
+        "@vonage/",
+        "@sendgrid/",
+        "resend",
+        "postmark",
+        "mailgun.js",
+        "mailgun-js",
+        "nodemailer",
+        "@aws-sdk/client-ses*",
+        "@aws-sdk/client-sns",
+        "@aws-sdk/client-pinpoint*",
+        "firebase-admin",
+        "web-push",
+        "@parse/node-apn",
+        "apn",
+        "@anthropic-ai/",
+        "openai",
+        "@google/genai",
+        "@google/generative-ai",
+        "@google-cloud/vertexai",
+        "@aws-sdk/client-bedrock*",
+        "@aws-sdk/client-s3",
+        "@aws-sdk/s3-request-presigner",
+        "@aws-sdk/lib-storage",
+        "googleapis",
+        "@googleapis/",
+        "@microsoft/microsoft-graph-client",
+        "@googlemaps/",
+        "cloudflare",
+        "@aws-sdk/client-route-53*",
+        "@aws-sdk/client-secrets-manager",
+        "@aws-sdk/client-kms",
+        "node-vault"
+      ],
+      "allowedPaths": [
+        "hub/packages/adapters",
+        "hub/apps/custody",
+        "hub/packages/communication"
+      ]
+    },
+    {
+      "name": "identity",
+      "packages": [
+        "@clerk/",
+        "@aws-sdk/client-cognito-identity-provider",
+        "amazon-cognito-identity-js",
+        "aws-jwt-verify"
+      ],
+      "allowedPaths": [
+        "core/packages/iam-dev",
+        "core/packages/iam-cognito"
+      ]
+    }
+  ],
+  "forbiddenPackages": ["@spoke/"],
+  "permissionChecks": true,
+  "turboRequired": true
+}

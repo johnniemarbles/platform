@@ -1,0 +1,9 @@
+packages:
+  - 'hub/packages/*'
+  - 'hub/apps/*'
+  - 'hub/tools/*'
+  - 'core/packages/*'
+  - 'core/apps/*'
+  - 'core/tools/*'
+  - 'core/app-packs/*'
+  - 'core/ui/*'

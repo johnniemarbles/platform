@@ -3,7 +3,7 @@ import type { CredentialClass } from '@platform-core/db-context';
 import {
   signScopeToken, signScopeTokenEd25519,
   SCOPE_TOKEN_SECRET_MIN_BYTES, type ScopeTokenClaims,
-} from './contracts.ts';
+} from '@platform-hub/contracts';
 import type { ResolvedMembership } from './membership.ts';
 
 export interface ScopeTokenSignerConfig {

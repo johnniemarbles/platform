@@ -1,0 +1,7 @@
+*                       @johnniemarbles
+/architecture.config.json @johnniemarbles
+/hub/                   @johnniemarbles
+/core/packages/         @johnniemarbles
+/core/registry/         @johnniemarbles
+# one line per app pack, owned by that app's owners, e.g.:
+# /core/app-packs/dentex/ @johnniemarbles

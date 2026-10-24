@@ -26,6 +26,7 @@ Read this first, then the plan.
 | **Drop Clerk entirely.** Dev identity verifies HS256 in-process | Sanjeev | No Clerk cost, no sk_test to rotate; Cognito plugs into the same `IdentityVerifier` interface for production |
 | Default first app to migrate: Dentex | Claude | Cheapest adapter swap (Supabase + Google GenAI). Overridable |
 | HS256 for scope tokens in dev; Ed25519 for prod | Claude | Both now in `@platform-hub/contracts`; prod lets the hub hold only the public verify key |
+| hub + core merged into johnniemarbles/platform; spoke-template stays separate; app-factory (registry, manifest, app-sync, app-packs) | Sanjeev, 2026-10-24 | Deviates from V3.1's repo layout only; the nine rules are unchanged; plan doc to be updated by Sanjeev |
 
 ## Gate 1 — shipped
 

@@ -1,24 +1,27 @@
 {
-  "name": "platform-core",
+  "name": "platform",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.15.0",
-  "engines": {
-    "node": ">=22"
-  },
+  "engines": { "node": ">=22" },
   "scripts": {
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "dev": "turbo run dev",
+    "db:migrate": "node --experimental-strip-types --no-warnings tools/db/migrate.ts",
+    "db:dryrun": "node --experimental-strip-types --no-warnings --test tools/db/dryrun.test.ts",
     "check:architecture": "node --experimental-strip-types --no-warnings scripts/architecture/check.ts",
     "test:architecture": "node --experimental-strip-types --no-warnings --test scripts/architecture/check.test.ts",
     "typecheck:scripts": "tsc -p tsconfig.json",
-    "check": "pnpm run check:architecture && pnpm run test:architecture && pnpm run typecheck:scripts && pnpm run typecheck && pnpm run test"
+    "check": "pnpm run check:architecture && pnpm run test:architecture && pnpm run typecheck:scripts && pnpm run typecheck && pnpm run db:dryrun && pnpm run test"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.3.16",
+    "@types/node": "^22.15.0",
+    "pg": "^8.12.0",
+    "@types/pg": "^8.11.6",
     "turbo": "^2.5.6",
-    "typescript": "^5.8.3",
-    "@types/node": "^22.15.0"
+    "typescript": "^5.8.3"
   }
 }
