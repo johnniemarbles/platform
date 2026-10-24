@@ -76,16 +76,20 @@ AS $$
   SELECT
     p_organization_id IS NOT NULL
     AND p_tenant_id = platform.current_tenant_id()
-    AND platform.current_organization_id() IS NOT NULL
-    AND platform.current_subject_can_access_organization(p_tenant_id, p_organization_id)
     AND (
-      p_organization_id = platform.current_organization_id()
-      OR EXISTS (
-        SELECT 1
-          FROM platform.organization_closure AS oc
-         WHERE oc.tenant_id = p_tenant_id
-           AND oc.ancestor_organization_id = platform.current_organization_id()
-           AND oc.descendant_organization_id = p_organization_id
+      platform.current_organization_id() IS NULL
+      OR (
+        platform.current_subject_can_access_organization(p_tenant_id, p_organization_id)
+        AND (
+          p_organization_id = platform.current_organization_id()
+          OR EXISTS (
+            SELECT 1
+              FROM platform.organization_closure AS oc
+             WHERE oc.tenant_id = p_tenant_id
+               AND oc.ancestor_organization_id = platform.current_organization_id()
+               AND oc.descendant_organization_id = p_organization_id
+          )
+        )
       )
     );
 $$;
@@ -98,13 +102,19 @@ CREATE POLICY crm_leads_organization_isolation
   FOR ALL
   USING (
     tenant_id = platform.current_tenant_id()
-    AND organization_id IS NOT NULL
-    AND platform.current_context_can_access_organization(tenant_id, organization_id)
+    AND (
+      (organization_id IS NULL AND platform.current_organization_id() IS NULL)
+      OR
+      (organization_id IS NOT NULL AND platform.current_context_can_access_organization(tenant_id, organization_id))
+    )
   )
   WITH CHECK (
     tenant_id = platform.current_tenant_id()
-    AND organization_id IS NOT NULL
-    AND platform.current_context_can_access_organization(tenant_id, organization_id)
+    AND (
+      (organization_id IS NULL AND platform.current_organization_id() IS NULL)
+      OR
+      (organization_id IS NOT NULL AND platform.current_context_can_access_organization(tenant_id, organization_id))
+    )
   );
 
 COMMENT ON COLUMN platform.crm_leads.organization_id IS

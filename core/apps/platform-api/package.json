@@ -22,6 +22,7 @@
     "@platform-core/party": "workspace:*",
     "@platform-core/entity": "workspace:*",
     "@platform-core/audit": "workspace:*",
+    "@platform-core/crm": "workspace:*",
     "@platform-core/route-kit": "workspace:*",
     "@platform-app-packs/dentex": "workspace:*",
     "pg": "^8.12.0",

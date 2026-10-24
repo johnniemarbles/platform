@@ -7,6 +7,8 @@ import { dbFromPglite } from '../../src/db-pglite.ts';
 import { DevIdentityVerifier, signDevToken } from '@platform-core/iam-dev';
 import { makeDispatcher, type PlatformApiConfig } from '../../src/handler.ts';
 import { platformV1Routes } from '../../src/modules/platform/v1/routes.ts';
+import { schedulingV1Routes } from '../../src/modules/scheduling/v1/routes.ts';
+import { crmV1Routes } from '../../src/modules/crm/v1/routes.ts';
 import { makeHostResolver } from '../../src/host-router.ts';
 import { collectMigrations } from '../../../../../tools/db/migrate.ts';
 import { syncPermissionCatalog, ensureSystemRolesForTenantApp, type RolesTemplate } from '../../src/permission-catalog.ts';
@@ -126,7 +128,7 @@ export async function setupHarness(slug: string, customPackDir?: string): Promis
     resolveTenantFromHost: makeHostResolver(db),
   };
 
-  const allRoutes = [...platformV1Routes(), ...packRoutes];
+  const allRoutes = [...platformV1Routes(), ...schedulingV1Routes(), ...crmV1Routes(), ...packRoutes];
   const dispatcher = makeDispatcher(allRoutes, config);
 
   const defaultTenantWorkspace = `${slug}-test`;

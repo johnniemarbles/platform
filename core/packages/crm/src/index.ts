@@ -31,9 +31,79 @@ export function isAcceptedLeadSource(source: string | null | undefined): source 
   return source != null && (LEAD_INGEST_SOURCES as readonly string[]).includes(source);
 }
 
+export interface CrmAccount {
+  readonly accountId: string;
+  readonly tenantId: string;
+  readonly organizationId: string | null;
+  readonly name: string;
+  readonly domain: string | null;
+  readonly industry: string | null;
+  readonly lifecycleStage: string;
+  readonly status: string;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface CrmContact {
+  readonly contactId: string;
+  readonly tenantId: string;
+  readonly accountId: string | null;
+  readonly fullName: string;
+  readonly email: string | null;
+  readonly phone: string | null;
+  readonly title: string | null;
+  readonly status: string;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface CrmCase {
+  readonly caseId: string;
+  readonly tenantId: string;
+  readonly accountId: string;
+  readonly contactId: string | null;
+  readonly subject: string;
+  readonly description: string | null;
+  readonly priority: string;
+  readonly status: string;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface CrmAgreement {
+  readonly agreementId: string;
+  readonly tenantId: string;
+  readonly accountId: string;
+  readonly sourceLeadId: string | null;
+  readonly title: string;
+  readonly status: string;
+  readonly valueMinorUnits: number | null;
+  readonly currency: string;
+  readonly startsOn: string | null;
+  readonly endsOn: string | null;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface ConvertLeadInput {
+  readonly openCase?: boolean;
+  readonly caseSubject?: string;
+  readonly agreementTitle?: string;
+  readonly agreementValueMinorUnits?: number;
+}
+
+export interface ConvertLeadResult {
+  readonly lead: CrmLead;
+  readonly account: CrmAccount;
+  readonly contact?: CrmContact | null;
+  readonly agreement: CrmAgreement;
+  readonly case?: CrmCase | null;
+}
+
 export interface CrmLead {
   readonly leadId: string;
   readonly tenantId: string;
+  readonly organizationId?: string | null;
   readonly accountId: string | null;
   readonly contactId: string | null;
   readonly title: string;

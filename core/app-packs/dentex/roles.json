@@ -7,7 +7,8 @@
         "platform.admin",
         "dentex.records-write",
         "scheduling.staff",
-        "communication.sender"
+        "communication.sender",
+        "crm-advanced.manager"
       ]
     },
     "staff": {
@@ -16,7 +17,8 @@
         "platform.member",
         "dentex.records-write",
         "scheduling.staff",
-        "communication.sender"
+        "communication.sender",
+        "crm-advanced.staff"
       ]
     },
     "viewer": {
