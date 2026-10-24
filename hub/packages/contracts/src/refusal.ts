@@ -25,6 +25,9 @@ export type RefusalCode =
   | 'IDEMPOTENCY_REPLAY'
   | 'WEBHOOK_SIGNATURE_INVALID'
   | 'WEBHOOK_REPLAY'
+  // App resolution & activation
+  | 'APP_UNKNOWN'
+  | 'APP_NOT_ACTIVATED'
   // Downstream (business rule said no, distinct from retryable transport failure)
   | 'REFUSED';
 
