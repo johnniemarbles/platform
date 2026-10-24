@@ -31,7 +31,7 @@ const mockRegistry: ModuleRegistry = {
     },
     crm: {
       status: 'library',
-      package: '@platform-core/lead',
+      package: '@platform-core/crm',
       contractVersion: '0.1.0',
       summary: 'CRM library',
       permissions: [],

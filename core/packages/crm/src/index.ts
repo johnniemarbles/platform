@@ -1,5 +1,5 @@
 /**
- * @platform-core/lead — the sales pipeline on top of @expadio/party.
+ * @platform-core/crm — the sales pipeline on top of @expadio/party.
  *
  * A Lead is a potential piece of business moving through governed stages,
  * optionally attached to an Account and/or Contact. Pure domain: types +

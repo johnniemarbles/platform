@@ -118,6 +118,8 @@ importers:
 
   core/packages/business-config: {}
 
+  core/packages/crm: {}
+
   core/packages/db-context: {}
 
   core/packages/domain-events:
@@ -166,8 +168,6 @@ importers:
       '@platform-core/tenancy':
         specifier: workspace:*
         version: link:../tenancy
-
-  core/packages/lead: {}
 
   core/packages/lead-identity:
     devDependencies:
