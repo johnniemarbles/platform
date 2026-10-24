@@ -1,0 +1,77 @@
+{
+  "$schema": "./modules.schema.json",
+  "registryVersion": 1,
+  "modules": {
+    "scheduling": {
+      "status": "available",
+      "package": "@platform-core/scheduling",
+      "contractVersion": "0.1.0",
+      "summary": "Appointment states, free-slot math, notification presets. Bookings routes in platform-api.",
+      "permissions": ["bookings.create", "bookings.read"],
+      "routes": ["POST /v1/bookings", "GET /v1/bookings"],
+      "migrations": ["0012_platform_bookings.sql"],
+      "uiKit": null,
+      "notes": "Routes and table are Dentex-shaped today (F5); generalised in Phase C.3."
+    },
+    "crm": {
+      "status": "library",
+      "package": "@platform-core/lead",
+      "contractVersion": "0.1.0",
+      "summary": "Lead stages, sources, scoring, person resolution. Accounts/contacts tables from 0044.",
+      "permissions": [],
+      "routes": [],
+      "migrations": ["0013_platform_organizations.sql", "0044_crm_party.sql"],
+      "uiKit": null
+    },
+    "gtm": {
+      "status": "library",
+      "package": "@platform-core/gtm",
+      "contractVersion": "0.1.0",
+      "summary": "AutoGTM sequences, ICP, enrollment state machine.",
+      "permissions": [],
+      "routes": [],
+      "migrations": [],
+      "uiKit": null
+    },
+    "learning": {
+      "status": "library",
+      "package": "@platform-core/learning",
+      "contractVersion": "0.1.0",
+      "summary": "LMS courses, enrollment, progress.",
+      "permissions": [],
+      "routes": [],
+      "migrations": [],
+      "uiKit": null
+    },
+    "communication": {
+      "status": "hub",
+      "package": "@platform-hub/communication",
+      "contractVersion": "0.1.0",
+      "summary": "Templated email/SMS through hub-api. Apps reach it only via platform-api routes that mint a least-privilege scope token.",
+      "permissions": ["communication.email.send"],
+      "routes": [],
+      "migrations": [],
+      "uiKit": null
+    },
+    "crm-advanced": {
+      "status": "planned",
+      "package": "@platform-core/crm",
+      "contractVersion": "0.0.0",
+      "summary": "Phase C.1",
+      "permissions": [],
+      "routes": [],
+      "migrations": [],
+      "uiKit": null
+    },
+    "directory": {
+      "status": "planned",
+      "package": "@platform-core/directory",
+      "contractVersion": "0.0.0",
+      "summary": "Phase C.2",
+      "permissions": [],
+      "routes": [],
+      "migrations": [],
+      "uiKit": null
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["registryVersion", "modules"],
+  "properties": {
+    "registryVersion": { "const": 1 },
+    "modules": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z][a-z0-9-]{1,39}$" },
+      "additionalProperties": {
+        "type": "object",
+        "required": ["status", "package", "contractVersion", "summary", "permissions", "routes", "migrations", "uiKit"],
+        "additionalProperties": false,
+        "properties": {
+          "status": { "enum": ["available", "library", "planned", "hub"] },
+          "package": { "type": "string", "pattern": "^@platform-(core|hub)/[a-z0-9-]+$" },
+          "contractVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+          "summary": { "type": "string", "minLength": 1 },
+          "permissions": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$" } },
+          "routes": { "type": "array", "items": { "type": "string", "pattern": "^(GET|POST|PATCH|PUT|DELETE) /v1/" } },
+          "migrations": { "type": "array", "items": { "type": "string", "pattern": "^\\d{4}_[a-z0-9_]+\\.sql$" } },
+          "uiKit": { "type": ["string", "null"] },
+          "notes": { "type": "string" }
+        }
+      }
+    }
+  }
+}

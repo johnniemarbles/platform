@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["manifestVersion", "appId", "slug", "displayName", "modules", "entities", "identityClients"],
+  "additionalProperties": false,
+  "properties": {
+    "manifestVersion": { "const": 1 },
+    "appId": { "type": "string", "pattern": "^app_[a-z0-9_]{2,40}$" },
+    "slug": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,30}$" },
+    "displayName": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "modules": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "required": ["id", "version"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "version": { "type": "string", "pattern": "^\\^?\\d+\\.\\d+\\.\\d+$" }
+        }
+      }
+    },
+    "entities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "cardinality", "fields"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "pattern": "^[a-z][a-zA-Z0-9]{1,40}$" },
+          "cardinality": { "enum": ["one-per-person", "many"] },
+          "managed": { "type": "boolean", "default": true },
+          "description": { "type": "string" },
+          "fields": {
+            "type": "object",
+            "propertyNames": {
+              "pattern": "^[a-z][a-zA-Z0-9]{0,40}$",
+              "not": { "enum": ["id", "tenantId", "appId", "status", "createdAt", "updatedAt", "createdBy", "ownerPersonId"] }
+            },
+            "additionalProperties": {
+              "type": "object",
+              "required": ["type"],
+              "additionalProperties": false,
+              "properties": {
+                "type": { "enum": ["text", "integer", "numeric", "boolean", "date", "timestamptz", "uuid", "jsonb", "text[]"] },
+                "required": { "type": "boolean", "default": false },
+                "maxLength": { "type": "integer", "minimum": 1, "maximum": 10000 },
+                "min": { "type": "number" },
+                "max": { "type": "number" },
+                "enum": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "identityClients": {
+      "type": "object",
+      "description": "Per environment, the identity-provider client IDs that represent this app. Used to resolve the app from the verified token audience.",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["provider", "poolId", "clientId"],
+          "additionalProperties": false,
+          "properties": {
+            "provider": { "enum": ["cognito", "dev"] },
+            "poolId": { "type": "string" },
+            "clientId": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}
