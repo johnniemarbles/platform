@@ -28,6 +28,8 @@ export type RefusalCode =
   // App resolution & activation
   | 'APP_UNKNOWN'
   | 'APP_NOT_ACTIVATED'
+  // Authority guard (plan rule 4)
+  | 'GRANT_EXCEEDS_AUTHORITY'
   // Downstream (business rule said no, distinct from retryable transport failure)
   | 'REFUSED';
 
