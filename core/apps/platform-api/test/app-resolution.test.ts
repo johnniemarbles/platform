@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { PGlite } from '@electric-sql/pglite';
 import { dbFromPglite } from '../src/db-pglite.ts';
 import { DevIdentityVerifier, signDevToken } from '@platform-core/iam-dev';
@@ -113,6 +115,8 @@ async function setupTestDb() {
       ('client-alpha', 'app_alpha', 'dev', 'platform-dev'),
       ('client-beta', 'app_beta', 'dev', 'platform-dev');
   `);
+  const m17 = readFileSync(resolve(import.meta.dirname, '../../../infra/db/migrations/0017_roles_catalog.sql'), 'utf8');
+  await pg.exec(m17);
   return pg;
 }
 

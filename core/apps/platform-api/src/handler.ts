@@ -10,6 +10,7 @@ import {
 import { resolveMembership, type ResolvedMembership } from './membership.ts';
 import { withRequestContext, type Db } from './db.ts';
 import { lookupAppsForClients } from './app-registry.ts';
+import { DeprecationRegistry } from './deprecation.ts';
 
 export type { HandlerContext, RouteDefinition };
 
@@ -18,6 +19,7 @@ export interface PlatformApiConfig {
   readonly identity: IdentityVerifier;
   readonly resolveTenantFromHost: (host: string | undefined) => Promise<string | null>;
   readonly now?: () => Date;
+  readonly deprecations?: DeprecationRegistry;
 }
 
 const sendJson = (res: ServerResponse, status: number, body: unknown): void => {
@@ -28,6 +30,7 @@ const sendJson = (res: ServerResponse, status: number, body: unknown): void => {
 const sendRefusal = (res: ServerResponse, r: Refusal, status = 403): void => sendJson(res, status, r);
 
 export function makeDispatcher(routes: readonly RouteDefinition[], config: PlatformApiConfig) {
+  const deprecations = config.deprecations ?? new DeprecationRegistry();
   return async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     const traceId = (req.headers['x-trace-id'] as string | undefined) ?? randomUUID();
     const url = new URL(req.url ?? '/', 'http://local');
@@ -79,6 +82,22 @@ export function makeDispatcher(routes: readonly RouteDefinition[], config: Platf
       return sendJson(res, 404, refusal('REFUSED', traceId, 'route not found'));
     }
 
+    const depInfo = deprecations.getDeprecation(route.method, route.path ?? pathname);
+    if (depInfo) {
+      res.setHeader('Deprecation', 'true');
+      if (depInfo.sunset) {
+        res.setHeader('Sunset', new Date(depInfo.sunset).toUTCString());
+      }
+      res.setHeader('Link', `<${depInfo.link}>; rel="deprecation"`);
+      config.db.query(
+        `INSERT INTO platform.deprecated_route_usage (app_id, route, day, calls)
+         VALUES ($1, $2, CURRENT_DATE, 1)
+         ON CONFLICT (app_id, route, day)
+         DO UPDATE SET calls = platform.deprecated_route_usage.calls + 1`,
+        [appId, route.path ?? pathname]
+      ).catch((e) => console.warn('[deprecated-route-usage] error:', e));
+    }
+
     const host = typeof req.headers['x-platform-host'] === 'string'
       ? req.headers['x-platform-host']
       : req.headers['host'];
@@ -89,7 +108,7 @@ export function makeDispatcher(routes: readonly RouteDefinition[], config: Platf
     const authResult = await (async () => {
       const tx = await config.db.begin();
       try {
-        await tx.query("SELECT set_config('app.tenant_id', $1, true)", [tenantId]);
+        await tx.query("SELECT platform.set_request_context($1::uuid, $2, '', 'platform-operational', NULL)", [tenantId, appId]);
         const r = await tx.query(
           'SELECT 1 FROM platform.tenant_apps WHERE tenant_id = $1 AND app_id = $2 AND deactivated_at IS NULL',
           [tenantId, appId]
@@ -137,7 +156,18 @@ export function makeDispatcher(routes: readonly RouteDefinition[], config: Platf
         async (tx) => route.handler({ tx, identity, membership, traceId, url }, req)
       );
       if (isRefusal(result)) {
-        const status = result.message === 'not found' ? 404 : 400;
+        let status = 400;
+        if (result.message === 'not found' || result.message === 'role not found' || result.message === 'assignment not found') {
+          status = 404;
+        } else if (
+          result.code === 'GRANT_EXCEEDS_AUTHORITY' ||
+          result.code === 'TOKEN_SCOPE_MISMATCH' ||
+          result.code === 'APP_NOT_ACTIVATED' ||
+          (result.code === 'REFUSED' &&
+            (result.message?.includes('last admin') || result.message?.includes('cannot remove bundles from system role')))
+        ) {
+          status = 403;
+        }
         return sendRefusal(res, result, status);
       }
       sendJson(res, 200, { ok: true, traceId, result });

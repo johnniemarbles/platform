@@ -6,9 +6,10 @@ import { btree_gist } from '@electric-sql/pglite/contrib/btree_gist';
 import { dbFromPglite } from '../../src/db-pglite.ts';
 import { DevIdentityVerifier, signDevToken } from '@platform-core/iam-dev';
 import { makeDispatcher, type PlatformApiConfig } from '../../src/handler.ts';
-import { meRoutes } from '../../src/routes/me.ts';
+import { platformV1Routes } from '../../src/modules/platform/v1/routes.ts';
 import { makeHostResolver } from '../../src/host-router.ts';
 import { collectMigrations } from '../../../../../tools/db/migrate.ts';
+import { syncPermissionCatalog, ensureSystemRolesForTenantApp, type RolesTemplate } from '../../src/permission-catalog.ts';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { RouteDefinition } from '@platform-core/route-kit';
 
@@ -35,10 +36,13 @@ export async function setupHarness(slug: string, customPackDir?: string): Promis
   const rolesJsonPath = resolve(packDir, 'roles.json');
 
   const appJson = existsSync(appJsonPath) ? JSON.parse(readFileSync(appJsonPath, 'utf8')) : { appId: `app_${slug}`, slug };
-  const rolesJson: Record<string, string[]> = existsSync(rolesJsonPath) ? JSON.parse(readFileSync(rolesJsonPath, 'utf8')) : {
-    owner: ['me.read'],
-    staff: ['me.read'],
-    viewer: ['me.read'],
+  const rawRoles = existsSync(rolesJsonPath) ? JSON.parse(readFileSync(rolesJsonPath, 'utf8')) : null;
+  const rolesJson: RolesTemplate = rawRoles && typeof rawRoles === 'object' && 'roles' in rawRoles ? rawRoles : {
+    roles: {
+      owner: { displayName: 'Owner', bundles: ['platform.member', 'platform.admin'] },
+      staff: { displayName: 'Staff', bundles: ['platform.member'] },
+      viewer: { displayName: 'Viewer', bundles: ['platform.member'] },
+    },
   };
 
   const pg = await PGlite.create({ extensions: { pgcrypto, btree_gist } });
@@ -63,6 +67,7 @@ export async function setupHarness(slug: string, customPackDir?: string): Promis
   }
 
   const db = dbFromPglite(pg);
+  await syncPermissionCatalog(db, { rootDir });
 
   // Register app & client
   const appId = appJson.appId ?? `app_${slug}`;
@@ -121,7 +126,7 @@ export async function setupHarness(slug: string, customPackDir?: string): Promis
     resolveTenantFromHost: makeHostResolver(db),
   };
 
-  const allRoutes = [...meRoutes(), ...packRoutes];
+  const allRoutes = [...platformV1Routes(), ...packRoutes];
   const dispatcher = makeDispatcher(allRoutes, config);
 
   const defaultTenantWorkspace = `${slug}-test`;
@@ -145,6 +150,7 @@ export async function setupHarness(slug: string, customPackDir?: string): Promis
       'INSERT INTO platform.tenant_apps (tenant_id, app_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
       [tenantId, appId]
     );
+    await ensureSystemRolesForTenantApp(db, tenantId, appId, rolesJson);
     return tenantId;
   }
 
@@ -167,11 +173,17 @@ export async function setupHarness(slug: string, customPackDir?: string): Promis
       const membershipId = ins.rows[0]!.membership_id;
       personId = ins.rows[0]!.person_id;
 
-      const perms = rolesJson[role] ?? ['me.read'];
+      const rRole = await pg.query<{ role_id: string }>(
+        'SELECT role_id FROM platform.roles WHERE tenant_id = $1 AND app_id = $2 AND role_key = $3',
+        [tenantId, appId, role]
+      );
+      const roleId = rRole.rows[0]?.role_id ?? null;
+      const legacyPerms = ['me.read'];
+
       await pg.query(
-        `INSERT INTO platform.role_assignments (membership_id, app_id, role_key, permissions, hierarchy_scope, granted_by)
-         VALUES ($1, $2, $3, $4, 'root', $5)`,
-        [membershipId, appId, role, perms, personId]
+        `INSERT INTO platform.role_assignments (membership_id, app_id, role_key, role_id, permissions, hierarchy_scope, granted_by)
+         VALUES ($1, $2, $3, $4, $5, 'root', $6)`,
+        [membershipId, appId, role, roleId, legacyPerms, personId]
       );
     }
     return { personId, subject };

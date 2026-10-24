@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { PGlite } from '@electric-sql/pglite';
 import { dbFromPglite } from '../src/db-pglite.ts';
 import { DevIdentityVerifier, signDevToken } from '@platform-core/iam-dev';
@@ -127,6 +129,10 @@ async function setupTestDb() {
     INSERT INTO platform.app_clients (client_id, app_id, identity_provider, identity_pool_id)
     VALUES ('dev-dentex', 'app_dentex', 'dev', 'platform-dev');
   `);
+  const m17 = readFileSync(resolve(import.meta.dirname, '../../../infra/db/migrations/0017_roles_catalog.sql'), 'utf8');
+  await pg.exec(m17);
+  const m20 = readFileSync(resolve(import.meta.dirname, '../../../infra/db/migrations/0020_deprecated_route_usage.sql'), 'utf8');
+  await pg.exec(m20);
   return pg;
 }
 
@@ -475,6 +481,91 @@ test('pipeline: /v1/bookings creates booking and dispatches confirmation', async
   assert.equal(getRes.body.result.length, 1);
   assert.equal(getRes.body.result[0].patientName, 'John Patient');
   assert.equal(getRes.body.result[0].serviceKey, 'root-canal');
+
+  await db.close();
+});
+
+test('pipeline: deprecated route sets Deprecation, Sunset, Link headers and records usage in db', async () => {
+  const pg = await setupTestDb();
+  const db = dbFromPglite(pg);
+  const tenantId = '11111111-1111-1111-1111-111111111111';
+  const personId = '22222222-2222-2222-2222-222222222222';
+
+  await pg.exec(`
+    INSERT INTO platform.tenants (tenant_id, account_id, country, region, workspace_name)
+    VALUES ('${tenantId}', '33333333-3333-3333-3333-333333333333', 'US', 'us-east-1', 'acme');
+    INSERT INTO platform.tenant_apps (tenant_id, app_id) VALUES ('${tenantId}', 'app_dentex');
+
+    INSERT INTO platform.memberships (membership_id, tenant_id, person_id, identity_provider, identity_pool_id, identity_subject_id)
+    VALUES (gen_random_uuid(), '${tenantId}', '${personId}', 'dev', 'platform-dev', 'usr_dep');
+
+    INSERT INTO platform.role_assignments (membership_id, app_id, role_key, permissions, hierarchy_scope, granted_by)
+    VALUES ((SELECT membership_id FROM platform.memberships WHERE identity_subject_id = 'usr_dep'),
+            'app_dentex', 'staff',
+            ARRAY['me.read'], 'root', '${personId}');
+  `);
+
+  const verifier = new DevIdentityVerifier({ secret: DEV_SECRET, productionGuard: 'allow' });
+  const mockDeprecations = {
+    getDeprecation(method: string, path: string) {
+      if (path === '/v1/me') {
+        return {
+          sunset: '2026-12-31T00:00:00Z',
+          link: 'https://github.com/johnniemarbles/platform/blob/main/core/registry/changelog/platform.md',
+        };
+      }
+      return undefined;
+    },
+  };
+
+  const config: PlatformApiConfig = {
+    db,
+    identity: verifier,
+    resolveTenantFromHost: makeHostResolver(db),
+    deprecations: mockDeprecations as any,
+  };
+
+  const dispatcher = makeDispatcher([...meRoutes()], config);
+  const token = signDevToken({ sub: 'usr_dep', iss: 'platform-dev', aud: 'dev-dentex' }, DEV_SECRET);
+
+  const headersSet: Record<string, string> = {};
+  const req = {
+    method: 'GET',
+    url: '/v1/me',
+    headers: {
+      authorization: `Bearer ${token}`,
+      host: 'acme.platform.test',
+    },
+  } as unknown as IncomingMessage;
+
+  const res = await new Promise<{ status: number; body: any }>((resolve) => {
+    const mockRes = {
+      statusCode: 200,
+      setHeader(k: string, v: string) {
+        headersSet[k.toLowerCase()] = v;
+      },
+      end(chunk: string) {
+        resolve({ status: mockRes.statusCode, body: JSON.parse(chunk) });
+      },
+    } as unknown as ServerResponse;
+    dispatcher(req, mockRes);
+  });
+
+  assert.equal(res.status, 200);
+  assert.equal(headersSet['deprecation'], 'true');
+  assert.equal(headersSet['sunset'], new Date('2026-12-31T00:00:00Z').toUTCString());
+  assert.ok(headersSet['link']?.includes('rel="deprecation"'));
+
+  // Allow async DB upsert to complete
+  await new Promise((r) => setTimeout(r, 50));
+
+  const usage = await pg.query<{ app_id: string; route: string; calls: string }>(
+    'SELECT app_id, route, calls FROM platform.deprecated_route_usage'
+  );
+  assert.equal(usage.rows.length, 1);
+  assert.equal(usage.rows[0]?.app_id, 'app_dentex');
+  assert.equal(usage.rows[0]?.route, '/v1/me');
+  assert.equal(Number(usage.rows[0]?.calls), 1);
 
   await db.close();
 });

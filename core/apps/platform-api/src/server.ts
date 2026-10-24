@@ -6,6 +6,7 @@ import { routes } from './routes.ts';
 import { identityFromEnv } from './identity.ts';
 import { makeHostResolver } from './host-router.ts';
 import { syncAppRegistry } from './app-registry.ts';
+import { syncPermissionCatalog } from './permission-catalog.ts';
 
 const required = (name: string): string => {
   const v = process.env[name];
@@ -19,6 +20,7 @@ const pool = new Pool({ connectionString: required('DATABASE_URL') });
 const db = dbFromPool(pool);
 
 await syncAppRegistry(db);
+await syncPermissionCatalog(db);
 
 const config: PlatformApiConfig = {
   db,
